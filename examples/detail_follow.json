@@ -1,0 +1,38 @@
+{
+  "id": "detail-follow-demo",
+  "name": "Detail follow demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/detail_list.html"],
+  "item_selector": "article.summary",
+  "unique_fields": ["title"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attribute",
+      "selector": "a.title",
+      "attribute": "href"
+    }
+  ],
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "merge_strategy": "override",
+    "max_depth": 1,
+    "fields": [
+      {
+        "name": "body",
+        "type": "css",
+        "selector": ".article-body"
+      }
+    ]
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

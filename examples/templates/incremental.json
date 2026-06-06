@@ -1,0 +1,24 @@
+{
+  "template": true,
+  "id": "template-incremental",
+  "name": "Template Incremental",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/incremental_page_1.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "name", "type": "json_path", "json_path": "name"}
+  ],
+  "dedup": {
+    "enabled": true,
+    "dataset": "template-catalog",
+    "keys": ["id"],
+    "scope": "spider",
+    "skip_existing": true
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

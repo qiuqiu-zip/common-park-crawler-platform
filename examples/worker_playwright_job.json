@@ -1,0 +1,31 @@
+{
+  "id": "worker-playwright-job-demo",
+  "name": "Worker Playwright job demo",
+  "version": "1.0",
+  "type": "playwright",
+  "start_urls": ["examples/fixtures/worker_playwright_page.html"],
+  "item_selector": "article.result",
+  "unique_fields": ["title"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attribute",
+      "selector": "a.title",
+      "attribute": "href"
+    }
+  ],
+  "playwright": {
+    "enabled": true,
+    "headless": true,
+    "browser_pool_size": 1,
+    "wait_until": "domcontentloaded"
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

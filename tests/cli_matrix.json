@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "description": "CLI smoke matrix for quick and full quality gates.",
+  "commands": [
+    {"id": "help", "feature_id": "F01", "argv": ["-m", "crawler_platform.cli", "--help"], "mode": "quick", "execute": true},
+    {"id": "validate-examples", "feature_id": "F01", "argv": ["-m", "crawler_platform.cli", "validate", "examples/local_api_json.json"], "mode": "quick", "execute": true},
+    {"id": "run-local-example", "feature_id": "F04", "argv": ["-m", "crawler_platform.cli", "run", "examples/local_api_json.json", "--data-dir", "{data_dir}"], "mode": "full", "execute": true},
+    {"id": "storage-check", "feature_id": "F02", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "storage", "check", "--json"], "mode": "quick", "execute": true},
+    {"id": "examples-list", "feature_id": "F18", "argv": ["-m", "crawler_platform.cli", "examples", "list", "--json"], "mode": "quick", "execute": true},
+    {"id": "examples-validate", "feature_id": "F18", "argv": ["-m", "crawler_platform.cli", "examples", "validate", "--json"], "mode": "quick", "execute": true},
+    {"id": "examples-smoke", "feature_id": "F18", "argv": ["-m", "crawler_platform.cli", "examples", "smoke", "--data-dir", "{data_dir}", "--json"], "mode": "full", "execute": true},
+    {"id": "scheduler-list", "feature_id": "F10", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "scheduler", "list", "--json"], "mode": "quick", "execute": true},
+    {"id": "scheduler-register", "feature_id": "F10", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "scheduler", "register", "examples/scheduled_interval.json", "--json"], "mode": "full", "execute": true},
+    {"id": "scheduler-run-due", "feature_id": "F10", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "scheduler", "run-due", "--now", "2026-06-03T00:00:00Z", "--json"], "mode": "full", "execute": true},
+    {"id": "worker-enqueue", "feature_id": "F11", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "worker", "enqueue", "examples/worker_api_job.json", "--json"], "mode": "full", "execute": true},
+    {"id": "worker-run-once", "feature_id": "F11", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "worker", "run-once", "--json"], "mode": "full", "execute": true},
+    {"id": "worker-jobs", "feature_id": "F11", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "worker", "jobs", "--json"], "mode": "quick", "execute": true},
+    {"id": "worker-stats", "feature_id": "F11", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "worker", "stats", "--json"], "mode": "quick", "execute": true},
+    {"id": "session-list", "feature_id": "F13", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "session", "list", "--json"], "mode": "quick", "execute": true},
+    {"id": "session-events", "feature_id": "F13", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "session", "events", "--json"], "mode": "quick", "execute": true},
+    {"id": "observability-logs", "feature_id": "F14", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "observability", "logs", "--json"], "mode": "quick", "execute": true},
+    {"id": "observability-metrics", "feature_id": "F14", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "observability", "metrics", "--json"], "mode": "quick", "execute": true},
+    {"id": "observability-report", "feature_id": "F14", "argv": ["-m", "crawler_platform.cli", "--data-dir", "{data_dir}", "observability", "report", "task", "missing-task", "--json"], "mode": "full", "execute": false, "reason": "Requires a prepared task report; covered by pytest and API matrix."},
+    {"id": "export-task", "feature_id": "F15", "argv": ["-m", "crawler_platform.cli", "export", "task", "missing-task", "--data-dir", "{data_dir}", "--json"], "mode": "full", "execute": false, "reason": "Requires a prepared successful task; covered by exporter pytest and API matrix."},
+    {"id": "export-list", "feature_id": "F15", "argv": ["-m", "crawler_platform.cli", "export", "list", "--data-dir", "{data_dir}", "--json"], "mode": "quick", "execute": true},
+    {"id": "export-show", "feature_id": "F15", "argv": ["-m", "crawler_platform.cli", "export", "show", "missing-export", "--data-dir", "{data_dir}", "--json"], "mode": "full", "execute": false, "reason": "Requires a prepared export manifest; covered by exporter pytest and API matrix."}
+  ]
+}

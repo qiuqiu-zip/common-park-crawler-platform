@@ -1,0 +1,27 @@
+{
+  "id": "feature09-pagination-retry-proxy",
+  "name": "Feature09 Pagination Retry Proxy",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/proxy_page.html"],
+  "item_selector": "article.item",
+  "fields": [
+    {"name": "title", "type": "css", "selector": ".title"}
+  ],
+  "pagination": {
+    "type": "url_list",
+    "urls": ["examples/fixtures/retry_success_after_2.json"],
+    "max_pages": 2
+  },
+  "retry": {
+    "enabled": true,
+    "max_attempts": 2,
+    "retry_on_errors": ["network"],
+    "backoff": "none"
+  },
+  "proxy": {
+    "enabled": true,
+    "mode": "round_robin",
+    "proxies": ["local-proxy-a", "local-proxy-b"]
+  }
+}

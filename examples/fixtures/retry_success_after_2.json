@@ -1,0 +1,15 @@
+{
+  "_crawler_platform_fixture": {
+    "sequence": [
+      {
+        "error_type": "network",
+        "message": "fixture transient network failure"
+      },
+      {
+        "status_code": 200,
+        "content_type": "text/html",
+        "body": "<article class=\"item\"><span class=\"title\">Retry Success</span></article>"
+      }
+    ]
+  }
+}

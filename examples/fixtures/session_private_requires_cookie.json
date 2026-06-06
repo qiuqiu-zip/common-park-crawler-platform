@@ -1,0 +1,16 @@
+{
+  "_crawler_platform_fixture": {
+    "sequence": [
+      {
+        "status_code": 401,
+        "content_type": "application/json",
+        "body": "{\"error\":\"expired\"}"
+      },
+      {
+        "status_code": 200,
+        "content_type": "application/json",
+        "body": "{\"items\":[{\"id\":2,\"title\":\"Refreshed private item\"}]}"
+      }
+    ]
+  }
+}

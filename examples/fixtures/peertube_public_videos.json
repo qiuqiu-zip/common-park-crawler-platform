@@ -1,0 +1,59 @@
+{
+  "total": 1110,
+  "data": [
+    {
+      "id": 1001,
+      "uuid": "bd0084a5-1d26-4816-ab5e-1bad9e2fb990",
+      "shortUUID": "pkDDcE7HiLU3UTGmRV1nJG",
+      "name": "WING IT! - Blender Open Movie",
+      "channel": {
+        "displayName": "Blender Open Movies"
+      },
+      "account": {
+        "displayName": "Blender"
+      },
+      "publishedAt": "2026-05-29T12:00:00.000Z",
+      "privacy": {
+        "id": 1,
+        "label": "Public"
+      },
+      "views": 94,
+      "duration": 238,
+      "truncatedDescription": "A Blender open movie release with public PeerTube metadata.",
+      "thumbnailPath": "/lazy-static/thumbnails/wing-it.jpg",
+      "thumbnails": [
+        {
+          "fileUrl": "/lazy-static/thumbnails/wing-it.jpg"
+        }
+      ],
+      "url": "/videos/watch/bd0084a5-1d26-4816-ab5e-1bad9e2fb990"
+    },
+    {
+      "id": 1002,
+      "uuid": "11111111-2222-4333-8444-555555555555",
+      "shortUUID": "localFixtureVideo2",
+      "name": "Blender Studio Reel",
+      "channel": {
+        "displayName": "Blender Studio"
+      },
+      "account": {
+        "displayName": "Blender"
+      },
+      "publishedAt": "2026-05-28T09:30:00.000Z",
+      "privacy": {
+        "id": 1,
+        "label": "Public"
+      },
+      "views": 42,
+      "duration": 120,
+      "truncatedDescription": "A compact fixture video that resembles public PeerTube list metadata.",
+      "thumbnailPath": "/lazy-static/thumbnails/studio-reel.jpg",
+      "thumbnails": [
+        {
+          "fileUrl": "/lazy-static/thumbnails/studio-reel.jpg"
+        }
+      ],
+      "url": "/videos/watch/11111111-2222-4333-8444-555555555555"
+    }
+  ]
+}

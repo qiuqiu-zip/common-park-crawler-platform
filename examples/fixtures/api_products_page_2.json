@@ -1,0 +1,14 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "api-2",
+        "title": "API Local Gadget",
+        "links": {
+          "detail": "examples/fixtures/api_detail_2.json"
+        }
+      }
+    ],
+    "next": null
+  }
+}

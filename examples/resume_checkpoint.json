@@ -1,0 +1,36 @@
+{
+  "id": "resume-checkpoint-demo",
+  "name": "Resume checkpoint demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/resume_page_1.json"],
+  "items_json_path": "items",
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id"
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "title"
+    }
+  ],
+  "dedup": {
+    "enabled": true,
+    "dataset": "resume-items",
+    "keys": ["id"],
+    "scope": "task",
+    "skip_existing": true,
+    "missing_key_policy": "error"
+  },
+  "pagination": {
+    "type": "url_list",
+    "urls": ["examples/fixtures/resume_page_2.json"],
+    "max_pages": 2
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

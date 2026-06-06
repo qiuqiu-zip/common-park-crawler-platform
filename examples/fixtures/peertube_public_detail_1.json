@@ -1,0 +1,22 @@
+{
+  "id": 1001,
+  "uuid": "bd0084a5-1d26-4816-ab5e-1bad9e2fb990",
+  "name": "WING IT! - Blender Open Movie",
+  "description": "A public Blender open movie published on a PeerTube instance. This fixture keeps only video metadata needed for smoke testing.",
+  "tags": ["OpenMovie", "b3d", "blender3d"],
+  "likes": 12,
+  "downloads": 3,
+  "comments": 0,
+  "licence": {
+    "id": 5,
+    "label": "Attribution"
+  },
+  "category": {
+    "id": 2,
+    "label": "Films"
+  },
+  "language": {
+    "id": "en",
+    "label": "English"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "id": "debug-transforms-demo",
+  "name": "Debug transforms demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/debug_transforms.html"],
+  "item_selector": "article.item",
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": ".title",
+      "transforms": ["strip", "title"]
+    },
+    {
+      "name": "price",
+      "type": "css",
+      "selector": ".price",
+      "transforms": ["currency_parse"]
+    },
+    {
+      "name": "views",
+      "type": "css",
+      "selector": ".views",
+      "transforms": ["number_parse"]
+    },
+    {
+      "name": "description",
+      "type": "css",
+      "selector": ".description",
+      "transforms": ["html_to_text"]
+    },
+    {
+      "name": "sku",
+      "type": "css",
+      "selector": ".code",
+      "transforms": [
+        {"type": "regex_extract", "pattern": "SKU:\\s*([A-Z0-9-]+)", "group": 1}
+      ]
+    },
+    {
+      "name": "fallback",
+      "type": "css",
+      "selector": ".missing",
+      "transforms": [
+        {"type": "default_if_empty", "value": "n/a"}
+      ]
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

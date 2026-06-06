@@ -1,0 +1,29 @@
+{
+  "template": true,
+  "id": "template-export",
+  "name": "Template Export",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/export_task_page.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "request": {
+    "response_type": "json"
+  },
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"},
+    {"name": "category", "type": "json_path", "json_path": "category"}
+  ],
+  "export": {
+    "formats": ["json", "jsonl", "csv", "xlsx"],
+    "default_format": "jsonl",
+    "include_dedup": true,
+    "redact_sensitive": true,
+    "nested_strategy": "flatten_dot",
+    "list_strategy": "json_string"
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

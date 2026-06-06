@@ -1,0 +1,12 @@
+{
+  "id": "lifecycle-worker-job-demo",
+  "name": "Lifecycle Worker Job Demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/lifecycle_worker_page.html"],
+  "item_selector": "article.item",
+  "unique_fields": ["title"],
+  "fields": [
+    {"name": "title", "type": "css", "selector": "a.title"}
+  ]
+}

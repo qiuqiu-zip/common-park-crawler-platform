@@ -1,0 +1,187 @@
+{
+  "id": "real-books-toscrape-small",
+  "name": "Real Books ToScrape small smoke",
+  "version": "1.0",
+  "type": "http",
+  "description": "Real external, no-login, no-cookie, low-rate smoke run for https://books.toscrape.com/.",
+  "start_urls": ["https://books.toscrape.com/"],
+  "item_selector": "article.product_pod",
+  "unique_fields": ["detail_url"],
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 20,
+    "headers": {
+      "Accept": "text/html"
+    },
+    "user_agent": "CommonParkCrawler/0.1 ToScrapeSmallSmoke"
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "attr",
+      "selector": "h3 a",
+      "attribute": "title",
+      "required": true,
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "price",
+      "type": "css",
+      "selector": ".price_color",
+      "required": true,
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "rating",
+      "type": "attr",
+      "selector": ".star-rating",
+      "attribute": "class",
+      "transforms": [
+        {
+          "type": "regex_extract",
+          "pattern": "star-rating\\s+(\\w+)",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "name": "availability",
+      "type": "css",
+      "selector": ".availability",
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "detail_url",
+      "type": "attr",
+      "selector": "h3 a",
+      "attribute": "href",
+      "required": true,
+      "transforms": ["urljoin", "strip_query"]
+    }
+  ],
+  "pagination": {
+    "type": "next_button",
+    "next_selector": "li.next a",
+    "next_attribute": "href",
+    "max_pages": 2,
+    "max_records": 5
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_url",
+    "merge_strategy": "override",
+    "max_depth": 1,
+    "request": {
+      "method": "GET",
+      "response_type": "html",
+      "timeout_seconds": 20,
+      "headers": {
+        "Accept": "text/html"
+      },
+      "user_agent": "CommonParkCrawler/0.1 ToScrapeSmallSmoke"
+    },
+    "fields": [
+      {
+        "name": "title",
+        "type": "css",
+        "selector": "h1",
+        "required": true,
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "price",
+        "type": "css",
+        "selector": ".price_color",
+        "required": true,
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "availability",
+        "type": "css",
+        "selector": ".availability",
+        "required": true,
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "rating",
+        "type": "attr",
+        "selector": ".star-rating",
+        "attribute": "class",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "star-rating\\s+(\\w+)",
+            "default": ""
+          }
+        ]
+      },
+      {
+        "name": "product_description",
+        "type": "regex",
+        "pattern": "Product Description\\s+(.+?)\\s+Product Information",
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "upc",
+        "type": "regex",
+        "pattern": "UPC\\s+([A-Za-z0-9]+)",
+        "required": true
+      },
+      {
+        "name": "category",
+        "type": "css",
+        "selector": ".breadcrumb a",
+        "many": true,
+        "transforms": ["last", "normalize_space"]
+      }
+    ]
+  },
+  "crawl_policy": {
+    "enabled": true,
+    "user_agent": "CommonParkCrawler/0.1 ToScrapeSmallSmoke",
+    "robots": {
+      "enabled": true,
+      "mode": "warn",
+      "unavailable_policy": "warn"
+    },
+    "allowed_domains": ["books.toscrape.com"],
+    "allow_cross_domain": false,
+    "max_requests": 20,
+    "max_depth": 2,
+    "max_duration_seconds": 300
+  },
+  "rate_limit": {
+    "enabled": true,
+    "requests_per_second": 1,
+    "per_domain": true
+  },
+  "concurrency": {
+    "enabled": true,
+    "max_concurrent_requests": 1,
+    "per_domain": true
+  },
+  "export": {
+    "enabled": true,
+    "formats": ["json", "jsonl", "csv"],
+    "default_format": "jsonl",
+    "include_metadata": false,
+    "nested_strategy": "flatten_dot",
+    "list_strategy": "json_string"
+  },
+  "scheduler": {
+    "type": "manual"
+  },
+  "metadata": {
+    "real_external_small_run": true,
+    "safety_boundaries": [
+      "no login",
+      "no cookies",
+      "no proxy",
+      "no anti-bot bypass",
+      "low frequency",
+      "small request cap"
+    ],
+    "recommended_data_dir": "test-output/toscrape-real-run"
+  }
+}

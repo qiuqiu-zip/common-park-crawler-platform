@@ -1,0 +1,52 @@
+{
+  "id": "crawl-plan-local-demo",
+  "name": "Crawl plan local demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/crawl_policy_page.html?category=books&utm_source=demo#top"],
+  "item_selector": "article.card",
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "pagination": {
+    "type": "url_list",
+    "urls": [
+      "examples/fixtures/crawl_policy_page.html?page=2&utm_medium=email",
+      "examples/fixtures/blocked.html"
+    ],
+    "max_pages": 2
+  },
+  "crawl_policy": {
+    "enabled": true,
+    "exclude_url_patterns": ["blocked"],
+    "robots": {
+      "enabled": true,
+      "mode": "block",
+      "unavailable_policy": "warn",
+      "rules": {
+        "local.fixture": "User-agent: *\nDisallow: /blocked\n"
+      }
+    },
+    "max_requests": 25,
+    "max_depth": 2,
+    "max_duration_seconds": 120
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": ".title",
+      "required": true
+    },
+    {
+      "name": "summary",
+      "type": "css",
+      "selector": ".summary"
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

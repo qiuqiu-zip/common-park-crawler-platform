@@ -1,0 +1,26 @@
+{
+  "id": "scheduled-cron-demo",
+  "name": "Scheduled cron demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/scheduled_cron_page.html"],
+  "item_selector": "article.entry",
+  "unique_fields": ["title"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    }
+  ],
+  "scheduler": {
+    "enabled": true,
+    "type": "cron",
+    "cron": "0 0 * * *",
+    "timezone": "UTC",
+    "start_at": "2026-06-03T00:00:00Z",
+    "misfire_policy": "run_once",
+    "max_instances": 1,
+    "jitter_seconds": 0
+  }
+}

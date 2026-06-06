@@ -1,0 +1,61 @@
+{
+  "id": "extractor-showcase-demo",
+  "name": "Extractor showcase demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/extractor_showcase.html"],
+  "item_selector": "article.product",
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title",
+      "required": true,
+      "transforms": ["strip", "normalize_space", "title"]
+    },
+    {
+      "name": "detail_url",
+      "type": "attr",
+      "selector": "a.title",
+      "attribute": "href"
+    },
+    {
+      "name": "price",
+      "type": "regex",
+      "pattern": "\\$(\\d+(?:\\.\\d+)?)",
+      "transforms": ["float"]
+    },
+    {
+      "name": "tags",
+      "type": "css",
+      "selector": "span.tag",
+      "many": true,
+      "transforms": ["strip", "lower"],
+      "join_with": ","
+    },
+    {
+      "name": "seller",
+      "type": "css",
+      "selector": ".seller",
+      "namespace": "seller",
+      "children": [
+        {
+          "name": "name",
+          "type": "css",
+          "selector": ".name",
+          "transforms": ["strip"]
+        },
+        {
+          "name": "rating",
+          "type": "regex",
+          "pattern": "rating:\\s*(\\d+(?:\\.\\d+)?)",
+          "transforms": ["float"],
+          "default": 0
+        }
+      ]
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

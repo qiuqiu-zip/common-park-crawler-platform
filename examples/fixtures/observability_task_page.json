@@ -1,0 +1,6 @@
+{
+  "items": [
+    {"id": 1, "title": "Observed A", "token": "task-secret-token"},
+    {"id": 2, "title": "Observed B", "token": "task-secret-token-2"}
+  ]
+}

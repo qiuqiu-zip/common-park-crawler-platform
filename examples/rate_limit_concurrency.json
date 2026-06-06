@@ -1,0 +1,24 @@
+{
+  "id": "feature09-rate-limit-concurrency",
+  "name": "Feature09 Rate Limit And Concurrency",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": [
+    "examples/fixtures/rate_limit_page_1.html",
+    "examples/fixtures/rate_limit_page_2.html"
+  ],
+  "item_selector": "article.item",
+  "fields": [
+    {"name": "title", "type": "css", "selector": ".title"}
+  ],
+  "rate_limit": {
+    "enabled": true,
+    "requests_per_second": 1000,
+    "per_domain": true
+  },
+  "concurrency": {
+    "enabled": true,
+    "max_concurrent_requests": 2,
+    "per_domain": false
+  }
+}

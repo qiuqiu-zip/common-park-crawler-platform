@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": "sku-2",
+      "name": "Two duplicate"
+    },
+    {
+      "id": "sku-3",
+      "name": "Three"
+    }
+  ]
+}

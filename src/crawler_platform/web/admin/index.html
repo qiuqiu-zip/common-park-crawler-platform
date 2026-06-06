@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crawler Platform Admin</title>
+  <link rel="stylesheet" href="/admin/assets/styles.css?v=20260606c">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1 id="adminTitle">Crawler Platform Admin</h1>
+      <p id="runtimeSummary" class="subtle">Loading runtime</p>
+    </div>
+    <div class="topbar-actions">
+      <button id="languageToggleButton" type="button">中文</button>
+      <button id="refreshButton" class="primary" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="loadingBar" class="loading-bar" hidden></div>
+
+  <main class="layout">
+    <nav class="sidebar" aria-label="Admin sections">
+      <button class="nav-item active" type="button" data-view="dashboard">Dashboard</button>
+      <button class="nav-item" type="button" data-view="examples">Examples</button>
+      <button class="nav-item" type="button" data-view="spiders">Spiders</button>
+      <button class="nav-item" type="button" data-view="tasks">Tasks</button>
+      <button class="nav-item" type="button" data-view="scheduler">Scheduler</button>
+      <button class="nav-item" type="button" data-view="worker">Worker</button>
+      <button class="nav-item" type="button" data-view="storage">Storage</button>
+      <button class="nav-item" type="button" data-view="sessions">Sessions</button>
+      <button class="nav-item" type="button" data-view="observability">Observability</button>
+      <button class="nav-item" type="button" data-view="exports">Exports</button>
+    </nav>
+
+    <section id="view" class="workspace" aria-live="polite"></section>
+  </main>
+
+    <script type="module" src="/admin/assets/app.js?v=20260606c"></script>
+</body>
+</html>

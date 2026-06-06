@@ -1,0 +1,32 @@
+{
+  "template": true,
+  "id": "template-session",
+  "name": "Template Session",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/session_public.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "request": {
+    "response_type": "json"
+  },
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"}
+  ],
+  "session": {
+    "enabled": true,
+    "profile": "template-session",
+    "persist": true,
+    "load_before_request": true,
+    "save_after_request": true,
+    "auth_check": {
+      "enabled": true,
+      "type": "status_code",
+      "expected_status": 200
+    }
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

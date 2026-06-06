@@ -1,0 +1,51 @@
+{
+  "id": "crawl-policy-local-demo",
+  "name": "Crawl policy local demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/crawl_policy_page.html"],
+  "item_selector": "article.card",
+  "unique_fields": ["title"],
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "crawl_policy": {
+    "enabled": true,
+    "robots": {
+      "enabled": true,
+      "mode": "warn",
+      "unavailable_policy": "warn"
+    },
+    "allow_cross_domain": false,
+    "normalize_url": true,
+    "remove_fragment": true,
+    "remove_tracking_params": true,
+    "max_requests": 10,
+    "max_depth": 2,
+    "max_duration_seconds": 60
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": ".title",
+      "required": true
+    },
+    {
+      "name": "summary",
+      "type": "css",
+      "selector": ".summary"
+    },
+    {
+      "name": "detail_path",
+      "type": "attr",
+      "selector": ".title",
+      "attribute": "href"
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

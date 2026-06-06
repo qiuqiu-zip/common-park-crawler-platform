@@ -1,0 +1,46 @@
+{
+  "id": "session-login-flow-demo",
+  "name": "Session login flow demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/session_public.json"],
+  "items_json_path": "items",
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"}
+  ],
+  "unique_fields": ["id"],
+  "request": {"response_type": "json"},
+  "session": {
+    "enabled": true,
+    "profile": "session-login-flow-demo",
+    "login_flow": {
+      "enabled": true,
+      "steps": [
+        {
+          "type": "request",
+          "url": "examples/fixtures/session_login_response.json",
+          "response_type": "json"
+        },
+        {
+          "type": "extract",
+          "name": "token",
+          "json_path": "token"
+        },
+        {
+          "type": "set_cookie",
+          "name": "sid",
+          "from": "token"
+        },
+        {
+          "type": "set_header",
+          "name": "Authorization",
+          "value": "Bearer fake-token"
+        },
+        {
+          "type": "save_session"
+        }
+      ]
+    }
+  }
+}

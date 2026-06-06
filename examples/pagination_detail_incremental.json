@@ -1,0 +1,55 @@
+{
+  "id": "pagination-detail-incremental-demo",
+  "name": "Pagination detail incremental demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/pagination_detail_incremental_page_1.html"],
+  "item_selector": "article.summary",
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attribute",
+      "selector": "a.title",
+      "attribute": "href"
+    }
+  ],
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "merge_strategy": "namespace",
+    "namespace": "detail",
+    "fields": [
+      {
+        "name": "id",
+        "type": "css",
+        "selector": ".id"
+      },
+      {
+        "name": "body",
+        "type": "css",
+        "selector": ".body"
+      }
+    ]
+  },
+  "dedup": {
+    "enabled": true,
+    "dataset": "detail-articles",
+    "keys": ["detail.id"],
+    "scope": "spider",
+    "skip_existing": true,
+    "missing_key_policy": "error"
+  },
+  "pagination": {
+    "type": "url_list",
+    "urls": ["examples/fixtures/pagination_detail_incremental_page_2.html"],
+    "max_pages": 2
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

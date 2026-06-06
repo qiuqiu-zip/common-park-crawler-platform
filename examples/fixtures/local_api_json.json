@@ -1,0 +1,14 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "local-1",
+        "title": "Local API Widget"
+      },
+      {
+        "id": "local-2",
+        "title": "Local API Gadget"
+      }
+    ]
+  }
+}

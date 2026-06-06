@@ -1,0 +1,32 @@
+{
+  "id": "export-nested-results-demo",
+  "name": "Export nested results demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/export_nested_page.json"],
+  "items_json_path": "items",
+  "request": {
+    "method": "GET",
+    "response_type": "json",
+    "timeout_seconds": 5
+  },
+  "export": {
+    "formats": ["json", "jsonl", "csv", "xlsx"],
+    "default_format": "csv",
+    "nested_strategy": "flatten_underscore",
+    "list_strategy": "join",
+    "join_separator": "|",
+    "field_aliases": {
+      "detail_author_name": "author_name"
+    }
+  },
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"},
+    {"name": "detail", "type": "json_path", "json_path": "detail"},
+    {"name": "tags", "type": "json_path", "json_path": "tags"}
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

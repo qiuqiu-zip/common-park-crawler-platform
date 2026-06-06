@@ -1,0 +1,36 @@
+{
+  "id": "debug-extract-local-demo",
+  "name": "Debug extract local demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/debug_extract_items.json"],
+  "items_json_path": "items",
+  "request": {
+    "method": "GET",
+    "response_type": "json",
+    "timeout_seconds": 5
+  },
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id",
+      "required": true
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "title",
+      "required": true
+    },
+    {
+      "name": "price",
+      "type": "json_path",
+      "json_path": "price",
+      "transforms": ["float"]
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "feature09-retry-http",
+  "name": "Feature09 Retry HTTP",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/retry_success_after_2.json"],
+  "item_selector": "article.item",
+  "fields": [
+    {"name": "title", "type": "css", "selector": ".title"}
+  ],
+  "retry": {
+    "enabled": true,
+    "max_attempts": 2,
+    "backoff": "none",
+    "retry_on_errors": ["network"],
+    "retry_on_status": [500, 502, 503, 504]
+  }
+}

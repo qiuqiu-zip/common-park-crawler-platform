@@ -1,0 +1,11 @@
+{
+  "cookies": [
+    {
+      "name": "sid",
+      "value": "storage-state-cookie",
+      "domain": "example.test",
+      "path": "/"
+    }
+  ],
+  "origins": []
+}

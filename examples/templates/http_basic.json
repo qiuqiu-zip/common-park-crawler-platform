@@ -1,0 +1,22 @@
+{
+  "template": true,
+  "id": "template-http-basic",
+  "name": "Template HTTP Basic",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/local_html_list.html"],
+  "item_selector": "article.product",
+  "unique_fields": ["title"],
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "fields": [
+    {"name": "title", "type": "css", "selector": "a.title"},
+    {"name": "price", "type": "regex", "pattern": "\\$(\\d+(?:\\.\\d+)?)", "transforms": ["float"]}
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

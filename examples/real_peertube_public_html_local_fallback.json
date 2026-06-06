@@ -1,0 +1,176 @@
+{
+  "id": "real-peertube-public-small-html-local",
+  "name": "Real PeerTube public small smoke (HTML local fixture)",
+  "version": "1.0",
+  "type": "http",
+  "description": "Local fallback for PeerTube-style HTML list/detail crawl when external HTML access is unavailable.",
+  "start_urls": ["examples/fixtures/peertube_public_html_videos_page.html"],
+  "item_selector": "article.video-item",
+  "unique_fields": ["detail_url"],
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 20,
+    "headers": {
+      "Accept": "text/html"
+    },
+    "user_agent": "CommonParkCrawler/0.1 PeerTubeSmallHtmlSmoke"
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": ".video-title",
+      "required": true,
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "channel",
+      "type": "css",
+      "selector": ".video-channel",
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "privacy",
+      "type": "css",
+      "selector": ".video-privacy",
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "watch_url",
+      "type": "attr",
+      "selector": "a.video-title",
+      "attribute": "href",
+      "required": true,
+      "transforms": ["strip_query"]
+    },
+    {
+      "name": "detail_url",
+      "type": "attr",
+      "selector": "a.video-title",
+      "attribute": "href",
+      "required": true,
+      "transforms": ["strip_query"]
+    }
+  ],
+  "pagination": {
+    "type": "none",
+    "max_pages": 1,
+    "max_records": 2
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_url",
+    "merge_strategy": "override",
+    "max_depth": 1,
+    "request": {
+      "method": "GET",
+      "response_type": "html",
+      "timeout_seconds": 20,
+      "headers": {
+        "Accept": "text/html"
+      },
+      "user_agent": "CommonParkCrawler/0.1 PeerTubeSmallHtmlSmoke"
+    },
+    "fields": [
+      {
+        "name": "full_description",
+        "type": "css",
+        "selector": ".video-description",
+        "required": true,
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "tags",
+        "type": "css",
+        "selector": ".video-tag",
+        "many": true,
+        "transforms": [
+          {
+            "type": "join",
+            "value": ","
+          }
+        ]
+      },
+      {
+        "name": "category",
+        "type": "css",
+        "selector": ".video-category",
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "language",
+        "type": "css",
+        "selector": ".video-language",
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "license",
+        "type": "css",
+        "selector": ".video-license",
+        "transforms": ["normalize_space"]
+      }
+    ]
+  },
+  "crawl_policy": {
+    "enabled": true,
+    "user_agent": "CommonParkCrawler/0.1 PeerTubeSmallHtmlSmoke",
+    "robots": {
+      "enabled": true,
+      "mode": "warn",
+      "unavailable_policy": "warn"
+    },
+    "allowed_domains": ["video.blender.org"],
+    "allow_cross_domain": false,
+    "max_requests": 20,
+    "max_depth": 2,
+    "max_duration_seconds": 300
+  },
+  "rate_limit": {
+    "enabled": true,
+    "requests_per_second": 0.5,
+    "per_domain": true
+  },
+  "concurrency": {
+    "enabled": true,
+    "max_concurrent_requests": 1,
+    "per_domain": true
+  },
+  "export": {
+    "enabled": true,
+    "formats": ["json", "jsonl", "csv"],
+    "default_format": "jsonl",
+    "include_metadata": false,
+    "nested_strategy": "flatten_dot",
+    "list_strategy": "json_string"
+  },
+  "scheduler": {
+    "type": "manual"
+  },
+  "session": {
+    "enabled": false
+  },
+  "proxy": {
+    "enabled": false
+  },
+  "anti_bot": {
+    "enabled": false
+  },
+  "metadata": {
+    "real_external_small_run": true,
+    "target_instance": "https://video.blender.org/",
+    "target_reason": "PeerTube HTML structure fallback preserved with local static files; used when external HTML is unavailable.",
+    "safety_boundaries": [
+      "no API endpoint",
+      "no login",
+      "no cookies",
+      "no proxy",
+      "no anti-bot bypass",
+      "no comments or private data crawl",
+      "low frequency",
+      "single domain",
+      "small request cap"
+    ],
+    "recommended_data_dir": "test-output/peertube-html-local-run"
+  }
+}

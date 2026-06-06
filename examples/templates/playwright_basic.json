@@ -1,0 +1,23 @@
+{
+  "template": true,
+  "id": "template-playwright-basic",
+  "name": "Template Playwright Basic",
+  "version": "1.0",
+  "type": "playwright",
+  "start_urls": ["examples/fixtures/playwright_rendered_list.html"],
+  "item_selector": "article.result",
+  "unique_fields": ["title"],
+  "fields": [
+    {"name": "title", "type": "css", "selector": "a.title"},
+    {"name": "detail_path", "type": "attr", "selector": "a.title", "attribute": "href"}
+  ],
+  "playwright": {
+    "enabled": true,
+    "headless": true,
+    "browser_pool_size": 1,
+    "wait_until": "domcontentloaded"
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

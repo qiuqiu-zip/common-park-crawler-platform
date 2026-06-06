@@ -1,0 +1,30 @@
+{
+  "id": "debug-urljoin-demo",
+  "name": "Debug URL transform demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/debug_books_page.html"],
+  "item_selector": "article.book",
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_url",
+      "type": "attr",
+      "selector": "a.title",
+      "attribute": "href",
+      "transforms": ["urljoin", "strip_query"]
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

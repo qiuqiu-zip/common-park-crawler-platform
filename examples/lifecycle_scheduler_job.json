@@ -1,0 +1,20 @@
+{
+  "id": "lifecycle-scheduler-job-demo",
+  "name": "Lifecycle Scheduler Job Demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/lifecycle_scheduler_page.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"}
+  ],
+  "scheduler": {
+    "enabled": true,
+    "type": "interval",
+    "interval_seconds": 60,
+    "start_at": "2026-06-03T00:00:00Z",
+    "timezone": "UTC"
+  }
+}

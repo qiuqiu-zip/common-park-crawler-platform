@@ -1,0 +1,33 @@
+{
+  "id": "pagination-offset-demo",
+  "name": "Pagination offset demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/pagination_offset_0.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id"
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "title"
+    }
+  ],
+  "pagination": {
+    "type": "offset",
+    "offset_param": "offset",
+    "page_size_param": "limit",
+    "page_size": 2,
+    "urls": ["examples/fixtures/pagination_offset_2.json"],
+    "max_pages": 2,
+    "max_records": 10
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

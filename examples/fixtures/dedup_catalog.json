@@ -1,0 +1,14 @@
+{
+  "data": {
+    "rows": [
+      {
+        "sku": "SKU-1",
+        "name": "Catalog One"
+      },
+      {
+        "sku": "SKU-1",
+        "name": "Catalog One Duplicate"
+      }
+    ]
+  }
+}

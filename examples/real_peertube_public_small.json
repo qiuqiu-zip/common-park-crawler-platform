@@ -1,0 +1,249 @@
+{
+  "id": "real-peertube-public-small",
+  "name": "Real PeerTube public small smoke",
+  "version": "1.0",
+  "type": "api",
+  "description": "Real external, no-login, no-cookie, no-API-key, low-rate smoke run for Blender's public PeerTube instance.",
+  "start_urls": [
+    "https://video.blender.org/api/v1/videos?start=0&count=10&sort=-publishedAt"
+  ],
+  "items_json_path": "data",
+  "unique_fields": ["uuid"],
+  "request": {
+    "method": "GET",
+    "response_type": "json",
+    "timeout_seconds": 20,
+    "max_retries": 1,
+    "headers": {
+      "Accept": "application/json"
+    },
+    "user_agent": "CommonParkCrawler/0.1 PeerTubeSmallSmoke"
+  },
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id",
+      "transforms": ["int"]
+    },
+    {
+      "name": "uuid",
+      "type": "json_path",
+      "json_path": "uuid",
+      "required": true
+    },
+    {
+      "name": "short_uuid",
+      "type": "json_path",
+      "json_path": "shortUUID"
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "name",
+      "required": true,
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "channel",
+      "type": "json_path",
+      "json_path": "channel.displayName",
+      "required": true,
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "account",
+      "type": "json_path",
+      "json_path": "account.displayName",
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "published_at",
+      "type": "json_path",
+      "json_path": "publishedAt",
+      "required": true
+    },
+    {
+      "name": "privacy",
+      "type": "json_path",
+      "json_path": "privacy.label",
+      "required": true
+    },
+    {
+      "name": "views",
+      "type": "json_path",
+      "json_path": "views",
+      "transforms": ["int"]
+    },
+    {
+      "name": "duration_seconds",
+      "type": "json_path",
+      "json_path": "duration",
+      "transforms": ["int"]
+    },
+    {
+      "name": "description_preview",
+      "type": "json_path",
+      "json_path": "truncatedDescription",
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "thumbnail_url",
+      "type": "json_path",
+      "json_path": "thumbnails[0].fileUrl"
+    },
+    {
+      "name": "watch_url",
+      "type": "json_path",
+      "json_path": "url",
+      "required": true
+    },
+    {
+      "name": "detail_api_url",
+      "type": "json_path",
+      "json_path": "uuid",
+      "required": true,
+      "transforms": [
+        {
+          "type": "prefix",
+          "value": "https://video.blender.org/api/v1/videos/"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "type": "none",
+    "max_pages": 1,
+    "max_records": 10
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_api_url",
+    "merge_strategy": "override",
+    "max_depth": 1,
+    "request": {
+      "method": "GET",
+      "response_type": "json",
+      "timeout_seconds": 20,
+      "max_retries": 1,
+      "headers": {
+        "Accept": "application/json"
+      },
+      "user_agent": "CommonParkCrawler/0.1 PeerTubeSmallSmoke"
+    },
+    "fields": [
+      {
+        "name": "full_description",
+        "type": "json_path",
+        "json_path": "description",
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "tags",
+        "type": "json_path",
+        "json_path": "tags",
+        "transforms": [
+          {
+            "type": "join",
+            "value": ","
+          }
+        ]
+      },
+      {
+        "name": "likes",
+        "type": "json_path",
+        "json_path": "likes",
+        "transforms": ["int"]
+      },
+      {
+        "name": "downloads",
+        "type": "json_path",
+        "json_path": "downloads",
+        "transforms": ["int"]
+      },
+      {
+        "name": "comments",
+        "type": "json_path",
+        "json_path": "comments",
+        "transforms": ["int"]
+      },
+      {
+        "name": "license",
+        "type": "json_path",
+        "json_path": "licence.label"
+      },
+      {
+        "name": "category",
+        "type": "json_path",
+        "json_path": "category.label"
+      },
+      {
+        "name": "language",
+        "type": "json_path",
+        "json_path": "language.label"
+      }
+    ]
+  },
+  "crawl_policy": {
+    "enabled": true,
+    "user_agent": "CommonParkCrawler/0.1 PeerTubeSmallSmoke",
+    "robots": {
+      "enabled": true,
+      "mode": "warn",
+      "unavailable_policy": "warn"
+    },
+    "allowed_domains": ["video.blender.org"],
+    "allow_cross_domain": false,
+    "max_requests": 20,
+    "max_depth": 2,
+    "max_duration_seconds": 300
+  },
+  "rate_limit": {
+    "enabled": true,
+    "requests_per_second": 0.5,
+    "per_domain": true
+  },
+  "concurrency": {
+    "enabled": true,
+    "max_concurrent_requests": 1,
+    "per_domain": true
+  },
+  "session": {
+    "enabled": false
+  },
+  "proxy": {
+    "enabled": false
+  },
+  "anti_bot": {
+    "enabled": false
+  },
+  "export": {
+    "enabled": true,
+    "formats": ["json", "jsonl", "csv"],
+    "default_format": "jsonl",
+    "include_metadata": false,
+    "nested_strategy": "flatten_dot",
+    "list_strategy": "json_string"
+  },
+  "scheduler": {
+    "type": "manual"
+  },
+  "metadata": {
+    "real_external_small_run": true,
+    "target_instance": "https://video.blender.org/",
+    "target_reason": "Blender Video is a public PeerTube instance with public video metadata and no login or API key requirement.",
+    "robots_checked": "2026-06-05: https://video.blender.org/robots.txt returned 200 with User-agent:* and empty Disallow.",
+    "safety_boundaries": [
+      "no API key",
+      "no login",
+      "no cookies",
+      "no proxy",
+      "no anti-bot bypass",
+      "no comments or private data crawl",
+      "low frequency",
+      "single domain",
+      "small request cap"
+    ],
+    "recommended_data_dir": "test-output/peertube-real-run"
+  }
+}

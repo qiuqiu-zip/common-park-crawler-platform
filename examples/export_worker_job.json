@@ -1,0 +1,27 @@
+{
+  "id": "export-worker-job-demo",
+  "name": "Export worker job demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/export_worker_page.html"],
+  "item_selector": "article.product",
+  "unique_fields": ["title"],
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "export": {
+    "formats": ["json", "jsonl", "csv", "xlsx"],
+    "default_format": "xlsx",
+    "include_metadata": true,
+    "nested_strategy": "flatten_dot"
+  },
+  "fields": [
+    {"name": "title", "type": "css", "selector": "a.title"},
+    {"name": "price", "type": "regex", "pattern": "\\$(\\d+(?:\\.\\d+)?)", "transforms": ["float"]}
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

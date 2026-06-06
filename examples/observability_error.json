@@ -1,0 +1,34 @@
+{
+  "id": "observability-error-demo",
+  "name": "Observability error demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/observability_error_page.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "request": {
+    "method": "GET",
+    "response_type": "json",
+    "timeout_seconds": 5,
+    "fail_fast": true
+  },
+  "observability": {
+    "enabled": true,
+    "log_level": "INFO",
+    "structured_logs": true,
+    "capture_request_timeline": true,
+    "capture_response_metadata": true,
+    "capture_record_samples": true,
+    "record_sample_limit": 5,
+    "redact_sensitive": true,
+    "metrics_enabled": true,
+    "run_report_enabled": true
+  },
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"}
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

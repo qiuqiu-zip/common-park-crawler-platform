@@ -1,0 +1,59 @@
+{
+  "id": "multilevel-detail-demo",
+  "name": "Multilevel detail demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/multilevel_list.html"],
+  "item_selector": "article.summary",
+  "unique_fields": ["title"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attribute",
+      "selector": "a.title",
+      "attribute": "href"
+    }
+  ],
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "merge_strategy": "override",
+    "max_depth": 2,
+    "fields": [
+      {
+        "name": "body",
+        "type": "css",
+        "selector": ".article-body"
+      },
+      {
+        "name": "author_path",
+        "type": "attribute",
+        "selector": "a.author",
+        "attribute": "href"
+      }
+    ],
+    "details": [
+      {
+        "enabled": true,
+        "url_field": "author_path",
+        "merge_strategy": "namespace",
+        "namespace": "author",
+        "fields": [
+          {
+            "name": "name",
+            "type": "css",
+            "selector": ".author-name"
+          }
+        ]
+      }
+    ]
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

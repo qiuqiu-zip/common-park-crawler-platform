@@ -1,0 +1,59 @@
+{
+  "id": "html-list-demo",
+  "name": "HTML list demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/html_products_page_1.html"],
+  "item_selector": "article.product",
+  "unique_fields": ["title"],
+  "request": {
+    "user_agent": "CommonParkCrawler/0.1",
+    "headers": {
+      "Accept": "text/html"
+    },
+    "delay_seconds": 0.2,
+    "proxy": null,
+    "max_retries": 2
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attribute",
+      "selector": "a.title",
+      "attribute": "href"
+    },
+    {
+      "name": "price",
+      "type": "regex",
+      "pattern": "\\$(\\d+(?:\\.\\d+)?)"
+    }
+  ],
+  "pagination": {
+    "type": "next_button",
+    "next_selector": "a.next",
+    "next_attribute": "href",
+    "max_pages": 3
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "fields": [
+      {
+        "name": "description",
+        "type": "css",
+        "selector": ".description"
+      }
+    ]
+  },
+  "scheduler": {
+    "enabled": true,
+    "type": "interval",
+    "interval_seconds": 3600,
+    "max_concurrency": 1
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "template": true,
+  "id": "template-detail-follow",
+  "name": "Template Detail Follow",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/detail_list.html"],
+  "item_selector": "article.summary",
+  "unique_fields": ["title"],
+  "fields": [
+    {"name": "title", "type": "css", "selector": "a.title"},
+    {"name": "detail_path", "type": "attr", "selector": "a.title", "attribute": "href"}
+  ],
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "merge_strategy": "override",
+    "fields": [
+      {"name": "description", "type": "css", "selector": ".description"}
+    ]
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

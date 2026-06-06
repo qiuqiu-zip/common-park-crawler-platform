@@ -1,0 +1,46 @@
+{
+  "id": "session-auth-refresh-demo",
+  "name": "Session auth refresh demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/session_private_requires_cookie.json"],
+  "items_json_path": "items",
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"}
+  ],
+  "unique_fields": ["id"],
+  "request": {"response_type": "json"},
+  "session": {
+    "enabled": true,
+    "profile": "session-auth-refresh-demo",
+    "auth_check": {
+      "enabled": true,
+      "type": "status_code",
+      "expected_status": 200
+    },
+    "refresh_flow": {
+      "enabled": true,
+      "steps": [
+        {
+          "type": "request",
+          "url": "examples/fixtures/session_refreshed_response.json",
+          "response_type": "json"
+        },
+        {
+          "type": "extract",
+          "name": "token",
+          "json_path": "token"
+        },
+        {
+          "type": "set_cookie",
+          "name": "sid",
+          "from": "token"
+        },
+        {
+          "type": "save_session"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": 1002,
+  "uuid": "11111111-2222-4333-8444-555555555555",
+  "name": "Blender Studio Reel",
+  "description": "A second public PeerTube-style detail payload used to prove detail URL joins and row counts stay bounded.",
+  "tags": ["BlenderStudio", "reel"],
+  "likes": 7,
+  "downloads": 1,
+  "comments": 0,
+  "licence": {
+    "id": 5,
+    "label": "Attribution"
+  },
+  "category": {
+    "id": 15,
+    "label": "Art"
+  },
+  "language": {
+    "id": "en",
+    "label": "English"
+  }
+}

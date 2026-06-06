@@ -1,0 +1,31 @@
+{
+  "id": "debug-quality-report-demo",
+  "name": "Debug field quality demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/debug_quality_missing.html"],
+  "item_selector": "article.item",
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": ".title",
+      "required": true
+    },
+    {
+      "name": "price",
+      "type": "css",
+      "selector": ".price",
+      "required": true,
+      "transforms": ["currency_parse"]
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

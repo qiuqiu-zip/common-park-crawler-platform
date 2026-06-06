@@ -1,0 +1,54 @@
+{
+  "id": "api-json-demo",
+  "name": "API JSON demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/api_products_page_1.json"],
+  "items_json_path": "data.items",
+  "unique_fields": ["id"],
+  "request": {
+    "headers": {
+      "Accept": "application/json"
+    },
+    "delay_seconds": 0,
+    "max_retries": 2
+  },
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id"
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "title"
+    },
+    {
+      "name": "detail_path",
+      "type": "json_path",
+      "json_path": "links.detail"
+    }
+  ],
+  "pagination": {
+    "type": "cursor",
+    "next_json_path": "data.next",
+    "max_pages": 5
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "fields": [
+      {
+        "name": "description",
+        "type": "json_path",
+        "json_path": "description"
+      }
+    ]
+  },
+  "scheduler": {
+    "enabled": false,
+    "type": "manual",
+    "max_concurrency": 1
+  }
+}

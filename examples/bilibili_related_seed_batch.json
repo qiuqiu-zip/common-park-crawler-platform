@@ -1,0 +1,294 @@
+{
+  "id": "bilibili-related-seed-batch",
+  "name": "Bilibili related videos from seed page",
+  "version": "1.0",
+  "type": "http",
+  "description": "Batch crawl related videos from one public seed video page on Bilibili, then follow each related video detail page for metadata.",
+  "start_urls": [
+    "https://www.bilibili.com/video/BV1DQ7k6JE4P/"
+  ],
+  "item_selector": ".video-page-card-small",
+  "unique_fields": ["detail_url"],
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 20,
+    "max_retries": 1,
+    "headers": {
+      "Accept": "text/html",
+      "Accept-Language": "zh-CN,zh;q=0.9",
+      "Referer": "https://www.bilibili.com/"
+    },
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": ".title",
+      "required": true,
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "up_name",
+      "type": "css",
+      "selector": ".upname .name",
+      "transforms": ["normalize_space"]
+    },
+    {
+      "name": "detail_url",
+      "type": "attr",
+      "selector": ".framepreview-box a",
+      "attribute": "href",
+      "required": true,
+      "transforms": [
+        "ensure_scheme",
+        "urljoin",
+        "strip_query"
+      ]
+    }
+  ],
+  "pagination": {
+    "type": "none",
+    "max_pages": 1,
+    "max_records": 12
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_url",
+    "merge_strategy": "override",
+    "max_depth": 1,
+    "request": {
+      "method": "GET",
+      "response_type": "html",
+      "timeout_seconds": 20,
+      "max_retries": 1,
+      "headers": {
+        "Accept": "text/html",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "Referer": "https://www.bilibili.com/"
+      },
+      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+    },
+    "fields": [
+      {
+        "name": "video_title",
+        "type": "attr",
+        "selector": "meta[name=title]",
+        "attribute": "content",
+        "required": true,
+        "transforms": [
+          {
+            "type": "remove_suffix",
+            "value": "_哔哩哔哩_bilibili"
+          },
+          "normalize_space"
+        ]
+      },
+      {
+        "name": "author_name",
+        "type": "attr",
+        "selector": "meta[name=author]",
+        "attribute": "content",
+        "required": true,
+        "transforms": ["normalize_space"]
+      },
+      {
+        "name": "description_text",
+        "type": "attr",
+        "selector": "meta[name=description]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "^(.*?)[,，]\\s*视频播放量",
+            "default": ""
+          },
+          "normalize_space"
+        ]
+      },
+      {
+        "name": "published_at",
+        "type": "attr",
+        "selector": "meta[itemprop=datePublished]",
+        "attribute": "content"
+      },
+      {
+        "name": "upload_at",
+        "type": "attr",
+        "selector": "meta[itemprop=uploadDate]",
+        "attribute": "content"
+      },
+      {
+        "name": "canonical_url",
+        "type": "attr",
+        "selector": "link[rel=canonical]",
+        "attribute": "href"
+      },
+      {
+        "name": "cover_url",
+        "type": "attr",
+        "selector": "meta[itemprop=image]",
+        "attribute": "content",
+        "transforms": ["ensure_scheme"]
+      },
+      {
+        "name": "keywords",
+        "type": "attr",
+        "selector": "meta[name=keywords]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "split",
+            "value": ","
+          }
+        ]
+      },
+      {
+        "name": "view_count",
+        "type": "attr",
+        "selector": "meta[name=description]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "视频播放量\\s*([0-9.万亿]+)",
+            "default": "0"
+          },
+          "number_parse"
+        ]
+      },
+      {
+        "name": "danmaku_count",
+        "type": "attr",
+        "selector": "meta[name=description]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "弹幕量\\s*([0-9.万亿]+)",
+            "default": "0"
+          },
+          "number_parse"
+        ]
+      },
+      {
+        "name": "like_count",
+        "type": "attr",
+        "selector": "meta[name=description]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "点赞数\\s*([0-9.万亿]+)",
+            "default": "0"
+          },
+          "number_parse"
+        ]
+      },
+      {
+        "name": "coin_count",
+        "type": "attr",
+        "selector": "meta[name=description]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "投硬币枚数\\s*([0-9.万亿]+)",
+            "default": "0"
+          },
+          "number_parse"
+        ]
+      },
+      {
+        "name": "favorite_count",
+        "type": "attr",
+        "selector": "meta[name=description]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "收藏人数\\s*([0-9.万亿]+)",
+            "default": "0"
+          },
+          "number_parse"
+        ]
+      },
+      {
+        "name": "share_count",
+        "type": "attr",
+        "selector": "meta[name=description]",
+        "attribute": "content",
+        "transforms": [
+          {
+            "type": "regex_extract",
+            "pattern": "转发人数\\s*([0-9.万亿]+)",
+            "default": "0"
+          },
+          "number_parse"
+        ]
+      }
+    ]
+  },
+  "crawl_policy": {
+    "enabled": true,
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+    "robots": {
+      "enabled": true,
+      "mode": "warn",
+      "unavailable_policy": "warn"
+    },
+    "allowed_domains": [
+      "www.bilibili.com",
+      "bilibili.com"
+    ],
+    "allow_cross_domain": false,
+    "max_requests": 20,
+    "max_depth": 2,
+    "max_duration_seconds": 300
+  },
+  "rate_limit": {
+    "enabled": true,
+    "requests_per_second": 0.2,
+    "per_domain": true
+  },
+  "concurrency": {
+    "enabled": true,
+    "max_concurrent_requests": 1,
+    "per_domain": true
+  },
+  "session": {
+    "enabled": false
+  },
+  "proxy": {
+    "enabled": false
+  },
+  "anti_bot": {
+    "enabled": false
+  },
+  "export": {
+    "enabled": true,
+    "formats": ["json", "jsonl", "csv"],
+    "default_format": "jsonl",
+    "include_metadata": false,
+    "nested_strategy": "flatten_dot",
+    "list_strategy": "json_string"
+  },
+  "scheduler": {
+    "type": "manual"
+  },
+  "metadata": {
+    "target_kind": "bilibili_seed_related_videos",
+    "seed_bvid": "BV1DQ7k6JE4P",
+    "seed_author_name": "林亦LYi",
+    "seed_author_space": "https://space.bilibili.com/4401694",
+    "why_this_shape": "Bilibili uploader pages and search pages triggered captcha in this environment, so this config batches through the seed video's server-rendered related videos list and follows each video detail page.",
+    "limits": [
+      "no pagination",
+      "no comments",
+      "no logged-in data",
+      "no uploader full archive list",
+      "no WBI-signed API calls"
+    ]
+  }
+}

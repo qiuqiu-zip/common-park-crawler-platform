@@ -1,0 +1,43 @@
+{
+  "id": "debug-dry-run-demo",
+  "name": "Debug dry run demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/debug_books_page.html"],
+  "item_selector": "article.book",
+  "request": {
+    "method": "GET",
+    "response_type": "html",
+    "timeout_seconds": 5
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title",
+      "required": true,
+      "transforms": ["strip"]
+    },
+    {
+      "name": "detail_url",
+      "type": "attr",
+      "selector": "a.title",
+      "attribute": "href",
+      "transforms": ["urljoin"]
+    },
+    {
+      "name": "price",
+      "type": "css",
+      "selector": ".price",
+      "transforms": ["currency_parse"]
+    },
+    {
+      "name": "summary",
+      "type": "css",
+      "selector": ".summary"
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "description": "FastAPI endpoint matrix for management API and static admin checks.",
+  "endpoints": [
+    {"method": "GET", "path": "/health", "feature_id": "F16", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/runtime/info", "feature_id": "F16", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/runtime/capabilities", "feature_id": "F16", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/spiders", "feature_id": "F16", "envelope": true, "quick": true},
+    {"method": "POST", "path": "/spiders", "feature_id": "F16", "envelope": true, "quick": false},
+    {"method": "GET", "path": "/tasks", "feature_id": "F16", "envelope": true, "quick": true},
+    {"method": "POST", "path": "/tasks/run", "feature_id": "F16", "envelope": true, "quick": false},
+    {"method": "GET", "path": "/storage/health", "feature_id": "F02", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/scheduler/schedules", "feature_id": "F10", "envelope": true, "quick": true},
+    {"method": "POST", "path": "/scheduler/run-due", "feature_id": "F10", "envelope": true, "quick": false},
+    {"method": "GET", "path": "/worker/jobs", "feature_id": "F11", "envelope": true, "quick": true},
+    {"method": "POST", "path": "/worker/run-once", "feature_id": "F11", "envelope": true, "quick": false},
+    {"method": "GET", "path": "/sessions", "feature_id": "F13", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/observability/logs", "feature_id": "F14", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/exports", "feature_id": "F15", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/examples", "feature_id": "F18", "envelope": true, "quick": true},
+    {"method": "GET", "path": "/admin", "feature_id": "F17", "envelope": false, "quick": true},
+    {"method": "GET", "path": "/openapi.json", "feature_id": "F16", "envelope": false, "quick": true}
+  ]
+}

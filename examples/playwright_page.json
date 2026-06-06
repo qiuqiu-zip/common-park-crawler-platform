@@ -1,0 +1,75 @@
+{
+  "id": "playwright-page-demo",
+  "name": "Playwright page demo",
+  "version": "1.0",
+  "type": "playwright",
+  "start_urls": ["examples/fixtures/playwright_rendered_list.html"],
+  "item_selector": "article.result",
+  "unique_fields": ["title", "detail_path"],
+  "request": {
+    "user_agent": "CommonParkCrawler/0.1",
+    "headers": {
+      "Accept-Language": "en-US,en;q=0.9"
+    },
+    "cookies": {
+      "preview": "1"
+    },
+    "delay_seconds": 1,
+    "proxy": null,
+    "timeout_seconds": 30,
+    "max_retries": 1
+  },
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attribute",
+      "selector": "a.title",
+      "attribute": "href"
+    },
+    {
+      "name": "rank",
+      "type": "xpath",
+      "selector": "string(//span[@class='rank'])",
+      "default": "unknown"
+    }
+  ],
+  "pagination": {
+    "type": "next_button",
+    "next_selector": "a.next",
+    "next_attribute": "href",
+    "max_pages": 2
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "fields": [
+      {
+        "name": "summary",
+        "type": "css",
+        "selector": ".summary"
+      },
+      {
+        "name": "external_id",
+        "type": "regex",
+        "pattern": "ID: ([A-Z0-9-]+)",
+        "default": null
+      }
+    ]
+  },
+  "playwright": {
+    "enabled": true,
+    "browser_pool_size": 2,
+    "wait_until": "networkidle"
+  },
+  "scheduler": {
+    "enabled": true,
+    "type": "cron",
+    "cron": "0 */6 * * *",
+    "max_concurrency": 1
+  }
+}

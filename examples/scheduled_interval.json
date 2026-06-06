@@ -1,0 +1,35 @@
+{
+  "id": "scheduled-interval-demo",
+  "name": "Scheduled interval demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/scheduled_page.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "request": {
+    "method": "GET",
+    "response_type": "json"
+  },
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id"
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "title"
+    }
+  ],
+  "scheduler": {
+    "enabled": true,
+    "type": "interval",
+    "interval_seconds": 60,
+    "timezone": "UTC",
+    "start_at": "2026-06-03T00:00:00Z",
+    "misfire_policy": "run_once",
+    "max_instances": 1,
+    "jitter_seconds": 0
+  }
+}

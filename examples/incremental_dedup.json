@@ -1,0 +1,32 @@
+{
+  "id": "incremental-dedup-demo",
+  "name": "Incremental dedup demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/incremental_page_1.json"],
+  "items_json_path": "items",
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id"
+    },
+    {
+      "name": "name",
+      "type": "json_path",
+      "json_path": "name"
+    }
+  ],
+  "dedup": {
+    "enabled": true,
+    "dataset": "catalog",
+    "keys": ["id"],
+    "hash_method": "sha256",
+    "scope": "spider",
+    "skip_existing": true,
+    "missing_key_policy": "error"
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

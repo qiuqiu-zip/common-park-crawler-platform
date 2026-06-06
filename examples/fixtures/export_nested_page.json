@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "nested-a",
+      "title": "Nested A",
+      "detail": {"author": {"name": "Ada"}, "score": 9},
+      "tags": ["alpha", "beta"]
+    },
+    {
+      "id": "nested-b",
+      "title": "Nested B",
+      "detail": {"author": {"name": "Grace"}, "score": 8},
+      "tags": ["gamma", "delta"]
+    }
+  ]
+}

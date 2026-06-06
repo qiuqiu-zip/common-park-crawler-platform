@@ -1,0 +1,18 @@
+{
+  "id": "lifecycle-task-retry-demo",
+  "name": "Lifecycle Task Retry Demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/lifecycle_retry_page.json"],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"}
+  ],
+  "dedup": {
+    "enabled": true,
+    "keys": ["id"],
+    "scope": "global"
+  }
+}

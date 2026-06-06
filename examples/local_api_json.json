@@ -1,0 +1,29 @@
+{
+  "id": "local-api-json-demo",
+  "name": "Local API JSON demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/local_api_json.json"],
+  "items_json_path": "data.items",
+  "unique_fields": ["id"],
+  "request": {
+    "method": "GET",
+    "response_type": "json",
+    "timeout_seconds": 5
+  },
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id"
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "title"
+    }
+  ],
+  "scheduler": {
+    "type": "manual"
+  }
+}

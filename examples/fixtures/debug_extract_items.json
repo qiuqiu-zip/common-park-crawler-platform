@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "id": "A-1",
+      "title": "Policy Primer",
+      "price": "12.50"
+    },
+    {
+      "id": "A-2",
+      "title": "Selector Debugging",
+      "price": "19.00"
+    }
+  ]
+}

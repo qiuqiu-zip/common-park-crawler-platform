@@ -1,0 +1,23 @@
+{
+  "id": "feature09-playwright-retry",
+  "name": "Feature09 Playwright Retry",
+  "version": "1.0",
+  "type": "playwright",
+  "start_urls": ["examples/fixtures/playwright_rendered_list.html"],
+  "item_selector": "article.result",
+  "fields": [
+    {"name": "title", "type": "css", "selector": ".title"}
+  ],
+  "playwright": {
+    "enabled": true,
+    "headless": true,
+    "browser_pool_size": 1,
+    "wait_until": "domcontentloaded"
+  },
+  "retry": {
+    "enabled": true,
+    "max_attempts": 2,
+    "retry_on_errors": ["render", "network"],
+    "backoff": "none"
+  }
+}

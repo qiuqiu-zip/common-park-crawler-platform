@@ -1,0 +1,45 @@
+{
+  "id": "incremental-watermark-demo",
+  "name": "Incremental watermark demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/watermark_page_new.json"],
+  "items_json_path": "items",
+  "fields": [
+    {
+      "name": "id",
+      "type": "json_path",
+      "json_path": "id"
+    },
+    {
+      "name": "title",
+      "type": "json_path",
+      "json_path": "title"
+    },
+    {
+      "name": "published_at",
+      "type": "json_path",
+      "json_path": "published_at"
+    }
+  ],
+  "dedup": {
+    "enabled": false
+  },
+  "watermark": {
+    "enabled": true,
+    "dataset": "articles",
+    "field": "published_at",
+    "strategy": "max",
+    "type": "datetime",
+    "format": "%Y-%m-%d",
+    "stop_when_older": true
+  },
+  "pagination": {
+    "type": "url_list",
+    "urls": ["examples/fixtures/watermark_page_old.json"],
+    "max_pages": 2
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

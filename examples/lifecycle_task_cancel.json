@@ -1,0 +1,16 @@
+{
+  "id": "lifecycle-task-cancel-demo",
+  "name": "Lifecycle Task Cancel Demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": [
+    "examples/fixtures/lifecycle_cancel_page_1.json",
+    "examples/fixtures/lifecycle_cancel_page_2.json"
+  ],
+  "items_json_path": "items",
+  "unique_fields": ["id"],
+  "fields": [
+    {"name": "id", "type": "json_path", "json_path": "id"},
+    {"name": "title", "type": "json_path", "json_path": "title"}
+  ]
+}

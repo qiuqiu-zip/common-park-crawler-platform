@@ -1,0 +1,26 @@
+{
+  "id": "session-playwright-state-demo",
+  "name": "Session Playwright storage state demo",
+  "version": "1.0",
+  "type": "playwright",
+  "start_urls": ["examples/fixtures/session_playwright_page.html"],
+  "item_selector": "article.item",
+  "fields": [
+    {"name": "title", "type": "css", "selector": ".title"}
+  ],
+  "unique_fields": ["title"],
+  "playwright": {
+    "enabled": true,
+    "browser_pool_size": 1,
+    "headless": true,
+    "wait_until": "domcontentloaded"
+  },
+  "session": {
+    "enabled": true,
+    "profile": "session-playwright-state-demo",
+    "storage_state": "examples/fixtures/session_storage_state.json",
+    "persist": true,
+    "load_before_request": true,
+    "save_after_request": true
+  }
+}

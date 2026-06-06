@@ -1,0 +1,26 @@
+{
+  "id": "pagination-page-demo",
+  "name": "Pagination page demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/pagination_page_1.html"],
+  "item_selector": "article.item",
+  "unique_fields": ["title"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "h2"
+    }
+  ],
+  "pagination": {
+    "type": "page",
+    "page_param": "page",
+    "urls": ["examples/fixtures/pagination_page_2.html"],
+    "max_pages": 2,
+    "max_records": 10
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

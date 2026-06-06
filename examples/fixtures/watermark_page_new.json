@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "New item",
+      "published_at": "2026-06-02"
+    },
+    {
+      "id": 2,
+      "title": "Recent item",
+      "published_at": "2026-05-30"
+    }
+  ]
+}

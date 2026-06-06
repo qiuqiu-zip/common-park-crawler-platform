@@ -1,0 +1,43 @@
+{
+  "id": "pagination-with-detail-demo",
+  "name": "Pagination with detail demo",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/pagination_detail_page_1.html"],
+  "item_selector": "article.summary",
+  "unique_fields": ["title"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attribute",
+      "selector": "a.title",
+      "attribute": "href"
+    }
+  ],
+  "pagination": {
+    "type": "page",
+    "page_param": "page",
+    "urls": ["examples/fixtures/pagination_detail_page_2.html"],
+    "max_pages": 2
+  },
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "merge_strategy": "override",
+    "fields": [
+      {
+        "name": "body",
+        "type": "css",
+        "selector": ".article-body"
+      }
+    ]
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}

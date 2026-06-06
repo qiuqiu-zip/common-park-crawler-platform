@@ -1,0 +1,11 @@
+{
+  "_crawler_platform_fixture": {
+    "sequence": [
+      {
+        "status_code": 200,
+        "content_type": "application/json",
+        "body": "{\"token\":\"login-cookie\"}"
+      }
+    ]
+  }
+}

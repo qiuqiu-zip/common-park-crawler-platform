@@ -1,0 +1,20 @@
+{
+  "id": "feature09-antibot-headers",
+  "name": "Feature09 Anti-bot Headers",
+  "version": "1.0",
+  "type": "http",
+  "start_urls": ["examples/fixtures/antibot_page.html"],
+  "item_selector": "article.item",
+  "fields": [
+    {"name": "title", "type": "css", "selector": ".title"}
+  ],
+  "anti_bot": {
+    "enabled": true,
+    "user_agents": ["CrawlerPlatformTest/1.0"],
+    "headers_pool": [
+      {"X-Test-Pool": "feature09"}
+    ],
+    "cookies": {"session": "local-fixture"},
+    "referer_policy": "none"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "_crawler_platform_fixture": {
+    "sequence": [
+      {"error_type": "network", "message": "observability fixture network failure"}
+    ]
+  }
+}

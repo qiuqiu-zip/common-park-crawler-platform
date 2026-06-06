@@ -1,0 +1,29 @@
+{
+  "id": "dedup-demo",
+  "name": "Dedup demo",
+  "version": "1.0",
+  "type": "api",
+  "start_urls": ["examples/fixtures/dedup_catalog.json"],
+  "items_json_path": "data.rows",
+  "fields": [
+    {
+      "name": "sku",
+      "type": "json_path",
+      "json_path": "sku"
+    },
+    {
+      "name": "name",
+      "type": "json_path",
+      "json_path": "name"
+    }
+  ],
+  "unique_fields": ["sku"],
+  "dedup": {
+    "enabled": true,
+    "strategy": "unique_hash",
+    "fields": ["sku"]
+  },
+  "scheduler": {
+    "type": "manual"
+  }
+}
