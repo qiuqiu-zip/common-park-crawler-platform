@@ -120,8 +120,8 @@ def test_admin_static_resources_are_local_and_relative():
     assert re.search(r"https?://", all_text) is None
     assert "C:\\" not in all_text
     assert "fetch(`${API_BASE}${path}`" in javascript
-    assert 'src="/admin/assets/app.js?v=20260606c"' in html
-    assert 'href="/admin/assets/styles.css?v=20260606c"' in html
+    assert 'src="/admin/assets/app.js?v=20260608b"' in html
+    assert 'href="/admin/assets/styles.css?v=20260608b"' in html
 
 
 def test_admin_javascript_covers_required_api_paths():
@@ -185,6 +185,9 @@ def test_admin_first_use_and_quickstart_controls_exist():
     assert "export_created" in app
     assert 'apiPost("/spiders"' in app
     assert 'apiPost("/tasks/run"' in app
+    assert "run-local-api-example" in app
+    assert "open-latest-task" in app
+    assert "export-latest-task" in app
     assert "No tasks yet - run a local example first." in app
     assert "No exports yet - select a task and export it." in app
     assert ".start-here" in styles
@@ -202,6 +205,37 @@ def test_admin_envelope_and_json_editor_helpers_exist():
     assert "export function parseJsonEditor" in components_js
     assert "Invalid JSON" in components_js
     assert "export function renderPager" in components_js
+
+
+def test_admin_summary_panels_and_selection_states_exist():
+    app = _asset_text("app.js")
+    components_js = _asset_text("components.js")
+    styles = _asset_text("styles.css")
+
+    assert "Task Summary" in app
+    assert "Schedule Summary" in app
+    assert "Worker Queue Summary" in app
+    assert "Worker Job Summary" in app
+    assert "Storage Summary" in app
+    assert "Snapshot Recovery" in app
+    assert "Session Summary" in app
+    assert "Example Summary" in app
+    assert "Spider Summary" in app
+    assert "Export Summary" in app
+    assert "Selected Log" in app
+    assert "Metrics Snapshot" in app
+    assert "state.selectedLog" in app
+    assert "observabilityRowId" in app
+    assert "renderObservabilityPayload" in app
+    assert "renderExportSummary" in app
+    assert "rememberObservabilityInputs" in app
+    assert "rememberExportInputs" in app
+    assert "selected-row" in components_js
+    assert "raw-json-collapsible" in components_js
+    assert ".summary-panel" in styles
+    assert ".panel-stack" in styles
+    assert ".compact-input-row" in styles
+    assert ".selected-row" in styles
 
 
 def test_admin_openapi_and_api_envelope_remain_intact(workspace_tmp_path):
