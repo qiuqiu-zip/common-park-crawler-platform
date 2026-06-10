@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from crawler_platform.api import create_app
+from crawler_platform.examples import get_example
 from crawler_platform.http_client import FakeFetcher
 from crawler_platform.models import FieldRule, SchedulerOptions, SpiderConfig, TaskRecord, TaskStatus
 from crawler_platform.observability import log_event, start_trace
@@ -306,6 +307,36 @@ def test_scheduler_worker_and_lifecycle_api(workspace_tmp_path):
     _error(client.post("/tasks/success-task/pause"), 409, "INVALID_STATE")
 
 
+def test_example_save_as_spider_and_task_report_fallback_api(workspace_tmp_path):
+    client, store = _client_and_store(workspace_tmp_path)
+
+    example = get_example("local-html-list")
+    created, _ = _ok(client.post("/spiders", json=example["config"]))
+    shown, _ = _ok(client.get(f"/spiders/{created['id']}"))
+    validation, _ = _ok(client.post("/spiders/validate", json=shown))
+    assert created["id"] == "local-html-list-demo"
+    assert validation["valid"] is True
+
+    store.save_task(
+        TaskRecord(
+            id="fallback-task",
+            spider_id=created["id"],
+            status=TaskStatus.SUCCESS,
+            total_requests=3,
+            success_requests=3,
+            saved_records=1,
+        )
+    )
+    store.append_record("fallback-task", {"id": "sample-1", "title": "Fallback record"})
+
+    report, _ = _ok(client.get("/tasks/fallback-task/report"))
+    assert report["task_id"] == "fallback-task"
+    assert report["status"] == "success"
+    assert report["saved_records"] == 1
+    assert report["record_quality_status"] == "unknown"
+    assert report["record_samples"][0]["title"] == "Fallback record"
+
+
 def test_sessions_observability_exports_and_redaction_api(workspace_tmp_path):
     client, store = _client_and_store(workspace_tmp_path)
     store.save_session_profile({"profile_id": "demo", "headers": {"Authorization": "Bearer raw-token"}})
@@ -317,7 +348,7 @@ def test_sessions_observability_exports_and_redaction_api(workspace_tmp_path):
     session_events, _ = _ok(client.get("/sessions/events?profile_id=demo"))
     cleared, _ = _ok(client.post("/sessions/demo/clear"))
     assert sessions[0]["profile_id"] == "demo"
-    assert shown["cookies"] == "***REDACTED***"
+    assert shown["cookies"] == {"sid": "***REDACTED***"}
     assert shown["profile"]["headers"]["Authorization"] == "***REDACTED***"
     assert session_events[0]["event_id"] == "session-event"
     assert cleared["profile_id"] == "demo"

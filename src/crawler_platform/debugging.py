@@ -54,6 +54,7 @@ class FieldQualitySummary:
     sample_values: list[Any] = field(default_factory=list)
     required: bool = False
     status: str = "ok"
+    hint: str | None = None
 
 
 @dataclass(slots=True)
@@ -259,10 +260,21 @@ def summarize_field_quality(records: list[dict[str, Any]], fields: list[FieldRul
         empty_count = total - len(non_empty_values)
         missing_rate = round(empty_count / total, 4) if total else 0.0
         status = "ok"
-        if rule.required and total and missing_rate >= 1:
+        hint = None
+        if total == 0:
+            status = "unknown"
+            hint = "no records were extracted; field completeness was not evaluated"
+        elif rule.required and missing_rate >= 1:
             status = "failed"
+            hint = "required field is missing in every record; check selector, render readiness, or follow rules"
         elif (rule.required and missing_rate > 0) or (not rule.required and total and missing_rate >= 0.5):
             status = "warning"
+            if rule.required:
+                hint = f"required field is missing in {empty_count}/{total} records"
+            else:
+                hint = f"field is empty in {empty_count}/{total} records"
+        elif empty_count:
+            hint = f"field is empty in {empty_count}/{total} records"
         summaries.append(
             FieldQualitySummary(
                 field=key,
@@ -273,6 +285,7 @@ def summarize_field_quality(records: list[dict[str, Any]], fields: list[FieldRul
                 sample_values=non_empty_values[: max(0, sample_size)],
                 required=rule.required,
                 status=status,
+                hint=hint,
             )
         )
     return summaries

@@ -50,13 +50,23 @@ def redact_sensitive(value: Any) -> Any:
         redacted: dict[Any, Any] = {}
         for key, item in value.items():
             if _is_sensitive_key(str(key)):
-                redacted[key] = REDACTED
+                redacted[key] = _redact_value_tree(item)
             else:
                 redacted[key] = redact_sensitive(item)
         return redacted
     if isinstance(value, list):
         return [redact_sensitive(item) for item in value]
     return value
+
+
+def _redact_value_tree(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _redact_value_tree(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_value_tree(item) for item in value]
+    if value is None:
+        return None
+    return REDACTED
 
 
 def apply_collection_query(items: Any, query: Mapping[str, Any]) -> tuple[Any, dict[str, Any]]:

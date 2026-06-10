@@ -41,8 +41,13 @@ The JSON report includes:
   match count, missing count, required flag, raw sample, transformed sample,
   warnings, errors, and child field diagnostics
 - `field_quality` with total records, non-empty count, empty count, missing
-  rate, sample values, required flag, and `ok`, `warning`, or `failed` status
+  rate, sample values, required flag, a human hint, and `ok`, `warning`,
+  `failed`, or `unknown` status
 - `artifact_path` and `report_path` when those files were written
+
+When no records are extracted, `field_quality` now reports `status=unknown`
+with a hint that completeness was not evaluated, instead of reporting a false
+positive `ok`.
 
 ## Debug Artifacts
 

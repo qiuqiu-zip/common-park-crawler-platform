@@ -5,13 +5,58 @@ from crawler_platform.cli import main
 from crawler_platform.engine import CrawlerEngine
 from crawler_platform.http_client import FetchError, HttpRequest
 from crawler_platform.models import DetailOptions, FieldRule, PaginationOptions, PlaywrightOptions, SpiderConfig
-from crawler_platform.playwright_runner import BrowserPool, FakeRenderBackend, PlaywrightFetcher
+from crawler_platform.playwright_runner import BrowserPool, FakeRenderBackend, PlaywrightFetcher, _apply_page_readiness_controls
 from crawler_platform.storage import FileStore
 from crawler_platform.validation import validate_spider_config
 
 
 def _request(url):
     return HttpRequest(method="GET", url=url, response_type="html")
+
+
+class _FakeLocator:
+    def __init__(self, page, selector):
+        self.page = page
+        self.selector = selector
+
+    def count(self):
+        return self.page.selector_counts(self.selector)
+
+
+class _FakePage:
+    def __init__(self, *, stop_selector_visible_after=0, fail_wait_selector=False):
+        self.stop_selector_visible_after = stop_selector_visible_after
+        self.fail_wait_selector = fail_wait_selector
+        self.wait_selector_calls = []
+        self.wait_timeout_calls = []
+        self.scroll_modes = []
+        self.scroll_states = []
+
+    def wait_for_selector(self, selector, *, state, timeout):
+        self.wait_selector_calls.append({"selector": selector, "state": state, "timeout": timeout})
+        if self.fail_wait_selector:
+            raise RuntimeError("selector not ready")
+
+    def wait_for_timeout(self, timeout_ms):
+        self.wait_timeout_calls.append(timeout_ms)
+
+    def locator(self, selector):
+        return _FakeLocator(self, selector)
+
+    def selector_counts(self, selector):
+        if selector == ".video-card" and self.scroll_states:
+            return 1
+        if selector == ".stop-after-scroll":
+            return 1 if len(self.scroll_states) >= self.stop_selector_visible_after else 0
+        return 0
+
+    def evaluate(self, script, mode):
+        steps = len(self.scroll_states) + 1
+        scroll_top = 800 * steps if mode != "incremental" else 400 * steps
+        state = {"scroll_top": scroll_top, "scroll_height": 3200, "viewport_height": 800}
+        self.scroll_modes.append(mode)
+        self.scroll_states.append(state)
+        return state
 
 
 def _playwright_spider(**overrides):
@@ -98,7 +143,22 @@ def test_browser_pool_releases_slot_after_failure():
 
 def test_playwright_config_accepts_pool_size_alias_and_headless():
     payload = _playwright_spider().to_dict()
-    payload["playwright"] = {"enabled": True, "pool_size": 3, "headless": False, "wait_until": "load"}
+    payload["playwright"] = {
+        "enabled": True,
+        "pool_size": 3,
+        "headless": False,
+        "wait_until": "load",
+        "wait_for_selector": ".video-card",
+        "wait_for_selector_timeout_ms": 4321,
+        "post_load_wait_ms": 250,
+        "scroll_strategy": {
+            "enabled": True,
+            "mode": "viewport",
+            "max_scrolls": 4,
+            "scroll_pause_ms": 125,
+            "stop_selector": ".video-card",
+        },
+    }
 
     result = validate_spider_config(payload)
     spider = SpiderConfig.from_dict(payload)
@@ -106,6 +166,52 @@ def test_playwright_config_accepts_pool_size_alias_and_headless():
     assert result.valid
     assert spider.playwright.browser_pool_size == 3
     assert spider.playwright.headless is False
+    assert spider.playwright.wait_for_selector == ".video-card"
+    assert spider.playwright.wait_for_selector_timeout_ms == 4321
+    assert spider.playwright.post_load_wait_ms == 250
+    assert spider.playwright.scroll_strategy.mode == "viewport"
+    assert spider.playwright.scroll_strategy.max_scrolls == 4
+    assert spider.playwright.scroll_strategy.stop_selector == ".video-card"
+
+
+def test_playwright_readiness_controls_wait_and_scroll_until_stop_selector():
+    page = _FakePage(stop_selector_visible_after=2)
+    options = PlaywrightOptions.from_dict(
+        {
+            "enabled": True,
+            "wait_for_selector": ".video-card",
+            "wait_for_selector_timeout_ms": 1500,
+            "post_load_wait_ms": 300,
+            "scroll_strategy": {
+                "enabled": True,
+                "mode": "viewport",
+                "max_scrolls": 5,
+                "scroll_pause_ms": 200,
+                "stop_selector": ".stop-after-scroll",
+            },
+        }
+    )
+
+    readiness = _apply_page_readiness_controls(page, "https://example.test/list", options)
+
+    assert page.wait_selector_calls == [{"selector": ".video-card", "state": "attached", "timeout": 1500}]
+    assert page.scroll_modes == ["viewport", "viewport"]
+    assert page.wait_timeout_calls == [300, 200, 200]
+    assert readiness["wait_for_selector_matched"] is True
+    assert readiness["scrolls_performed"] == 2
+
+
+def test_playwright_readiness_controls_wrap_wait_failures():
+    page = _FakePage(fail_wait_selector=True)
+    options = PlaywrightOptions.from_dict({"enabled": True, "wait_for_selector": ".video-card"})
+
+    try:
+        _apply_page_readiness_controls(page, "https://example.test/list", options)
+    except FetchError as exc:
+        assert exc.error_type == "playwright_render"
+        assert exc.url == "https://example.test/list"
+    else:
+        raise AssertionError("expected FetchError")
 
 
 def test_engine_uses_playwright_fetcher_for_playwright_spider(workspace_tmp_path):

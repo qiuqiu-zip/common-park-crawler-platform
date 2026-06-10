@@ -41,6 +41,26 @@ def test_dry_run_reports_required_missing_and_field_quality(workspace_tmp_path):
     assert title_quality.total_records == 3
     assert title_quality.non_empty_count == 2
     assert title_quality.status == "warning"
+    assert title_quality.hint == "required field is missing in 1/3 records"
+
+
+def test_field_quality_marks_no_records_as_unknown(workspace_tmp_path):
+    store = FileStore(workspace_tmp_path)
+    spider = SpiderConfig(
+        id="empty-preview",
+        name="empty-preview",
+        type="http",
+        start_urls=["https://example.test/list"],
+        item_selector=".missing",
+        fields=[FieldRule(name="title", type="css", selector=".title", required=True)],
+    )
+
+    report = run_dry_run(spider, store, fetcher=FakeFetcher({"https://example.test/list": "<main><p>no items</p></main>"}))
+
+    title_quality = next(item for item in report.field_quality if item.field == "title")
+    assert report.item_count == 0
+    assert title_quality.status == "unknown"
+    assert title_quality.hint == "no records were extracted; field completeness was not evaluated"
 
 
 def test_cleaning_and_url_transforms_use_source_url_context():

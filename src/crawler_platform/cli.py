@@ -1086,6 +1086,8 @@ def _print_dry_run_payload(payload: dict, json_mode: bool) -> None:
             f"missing_rate={quality.get('missing_rate')} "
             f"non_empty={quality.get('non_empty_count')}/{quality.get('total_records')}"
         )
+        if quality.get("hint"):
+            print(f"  hint={quality.get('hint')}")
     if payload.get("sample_records"):
         print("samples=" + json.dumps(payload.get("sample_records"), ensure_ascii=False))
     if payload.get("report_path"):
@@ -1161,6 +1163,8 @@ def _print_debug_payload(payload: dict, json_mode: bool, *, kind: str) -> None:
     )
     for quality in payload.get("field_quality") or []:
         print(f"quality {quality.get('field')} status={quality.get('status')} missing_rate={quality.get('missing_rate')}")
+        if quality.get("hint"):
+            print(f"  hint={quality.get('hint')}")
     if payload.get("sample_records"):
         print("samples=" + json.dumps(payload.get("sample_records"), ensure_ascii=False))
 

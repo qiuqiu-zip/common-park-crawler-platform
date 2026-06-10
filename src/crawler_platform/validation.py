@@ -35,6 +35,7 @@ SUPPORTED_SESSION_FLOW_STEPS = ["request", "extract", "set_cookie", "set_header"
 SUPPORTED_LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR"]
 SUPPORTED_ROBOTS_MODES = ["warn", "block"]
 SUPPORTED_ROBOTS_UNAVAILABLE_POLICIES = ["warn", "block", "ignore"]
+SUPPORTED_SCROLL_MODES = ["none", "viewport", "incremental", "bottom"]
 
 
 @dataclass(slots=True)
@@ -138,12 +139,39 @@ def validate_spider_config(config: dict[str, Any] | SpiderConfig) -> ValidationR
         _positive_int(max_records, "pagination.max_records", issues)
 
     playwright = data.get("playwright", {})
+    if playwright is not None and not isinstance(playwright, dict):
+        issues.append(ValidationIssue("playwright", "must be an object"))
+        playwright = {}
     pool_size = playwright.get("browser_pool_size", playwright.get("pool_size", 1))
     _positive_int(pool_size, "playwright.browser_pool_size", issues)
     if "headless" in playwright and not isinstance(playwright["headless"], bool):
         issues.append(ValidationIssue("playwright.headless", "must be a boolean"))
     if playwright.get("wait_until", "networkidle") not in {"load", "domcontentloaded", "networkidle"}:
         issues.append(ValidationIssue("playwright.wait_until", "must be load, domcontentloaded, or networkidle"))
+    wait_selector = playwright.get("wait_for_selector")
+    if wait_selector is not None and (not isinstance(wait_selector, str) or not wait_selector.strip()):
+        issues.append(ValidationIssue("playwright.wait_for_selector", "must be a non-empty string when provided"))
+    wait_selector_timeout_ms = playwright.get("wait_for_selector_timeout_ms")
+    if wait_selector_timeout_ms is not None:
+        _positive_int(wait_selector_timeout_ms, "playwright.wait_for_selector_timeout_ms", issues)
+    post_load_wait_ms = playwright.get("post_load_wait_ms")
+    if post_load_wait_ms is not None:
+        _non_negative_int(post_load_wait_ms, "playwright.post_load_wait_ms", issues)
+    scroll_strategy = playwright.get("scroll_strategy", {})
+    if scroll_strategy is not None and not isinstance(scroll_strategy, dict):
+        issues.append(ValidationIssue("playwright.scroll_strategy", "must be an object"))
+        scroll_strategy = {}
+    if "enabled" in scroll_strategy and not isinstance(scroll_strategy["enabled"], bool):
+        issues.append(ValidationIssue("playwright.scroll_strategy.enabled", "must be a boolean"))
+    if scroll_strategy.get("mode", "none") not in SUPPORTED_SCROLL_MODES:
+        issues.append(ValidationIssue("playwright.scroll_strategy.mode", f"must be one of {SUPPORTED_SCROLL_MODES}"))
+    if scroll_strategy.get("max_scrolls") is not None:
+        _positive_int(scroll_strategy.get("max_scrolls"), "playwright.scroll_strategy.max_scrolls", issues)
+    if scroll_strategy.get("scroll_pause_ms") is not None:
+        _non_negative_int(scroll_strategy.get("scroll_pause_ms"), "playwright.scroll_strategy.scroll_pause_ms", issues)
+    stop_selector = scroll_strategy.get("stop_selector")
+    if stop_selector is not None and (not isinstance(stop_selector, str) or not stop_selector.strip()):
+        issues.append(ValidationIssue("playwright.scroll_strategy.stop_selector", "must be a non-empty string when provided"))
 
     _validate_scheduler(data.get("scheduler", {}), issues)
 
@@ -334,6 +362,20 @@ def spider_config_json_schema() -> dict[str, Any]:
                         "type": "string",
                         "enum": ["load", "domcontentloaded", "networkidle"],
                         "default": "networkidle",
+                    },
+                    "wait_for_selector": {"type": ["string", "null"]},
+                    "wait_for_selector_timeout_ms": {"type": "integer", "minimum": 1, "default": 10000},
+                    "post_load_wait_ms": {"type": "integer", "minimum": 0, "default": 0},
+                    "scroll_strategy": {
+                        "type": "object",
+                        "properties": {
+                            "enabled": {"type": "boolean", "default": False},
+                            "mode": {"type": "string", "enum": SUPPORTED_SCROLL_MODES, "default": "none"},
+                            "max_scrolls": {"type": "integer", "minimum": 1, "default": 3},
+                            "scroll_pause_ms": {"type": "integer", "minimum": 0, "default": 800},
+                            "stop_selector": {"type": ["string", "null"]},
+                        },
+                        "additionalProperties": False,
                     },
                 },
                 "additionalProperties": False,

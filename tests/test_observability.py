@@ -201,6 +201,21 @@ def test_retry_rate_limit_session_and_failed_task_report(workspace_tmp_path):
     assert report["top_errors"][0]["key"] == "network"
 
 
+def test_task_report_marks_zero_record_quality_as_unknown(workspace_tmp_path):
+    spider = _html_spider("obs-empty", item_selector=".missing")
+    store = FileStore(workspace_tmp_path)
+    task = CrawlerEngine(store=store, fetcher=FakeFetcher({"https://example.test/list": "<main><p>still loading</p></main>"})).run(
+        spider,
+        task_id="obs-empty-task",
+    )
+
+    report = store.get_run_report("task", task.id)
+    assert report["saved_records"] == 0
+    assert report["record_quality_status"] == "unknown"
+    assert report["field_quality"][0]["status"] == "unknown"
+    assert report["field_quality"][0]["hint"] == "no records were extracted; field completeness was not evaluated"
+
+
 def test_cancelled_task_and_lifecycle_events_are_observable(workspace_tmp_path):
     store = FileStore(workspace_tmp_path)
     store.write_lifecycle_signal("task", "cancel-task", {"cancel_requested": True, "reason": "test"})

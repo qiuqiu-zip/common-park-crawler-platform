@@ -169,19 +169,25 @@ class PlaywrightRenderBackend:
             if request.cookies:
                 context.add_cookies(_cookies_for_url(request.url, request.cookies))
             page = context.new_page()
-            response = page.goto(request.url, wait_until=options.wait_until, timeout=int(request.timeout * 1000))
-            body = page.content()
-            final_url = page.url
-            status_code = response.status if response is not None else 200
-            storage_state = context.storage_state()
-            return HttpResponse(
-                url=request.url,
-                final_url=final_url,
-                status_code=status_code,
-                body=body,
-                content_type="text/html",
-                metadata={"storage_state": storage_state},
-            )
+            try:
+                response = page.goto(request.url, wait_until=options.wait_until, timeout=int(request.timeout * 1000))
+                readiness = _apply_page_readiness_controls(page, request.url, options)
+                body = page.content()
+                final_url = page.url
+                status_code = response.status if response is not None else 200
+                storage_state = context.storage_state()
+                return HttpResponse(
+                    url=request.url,
+                    final_url=final_url,
+                    status_code=status_code,
+                    body=body,
+                    content_type="text/html",
+                    metadata={"storage_state": storage_state, "playwright_readiness": readiness},
+                )
+            except FetchError:
+                raise
+            except Exception as exc:
+                raise FetchError(f"Playwright render failed for {request.url}: {exc}", "playwright_render", url=request.url) from exc
         finally:
             context.close()
 
@@ -264,6 +270,98 @@ def _local_path(url: str) -> Path:
     if parsed.scheme == "file":
         return Path(urllib.request.url2pathname(parsed.path))
     return Path(url)
+
+
+def _apply_page_readiness_controls(page, url: str, options: PlaywrightOptions) -> dict[str, object]:
+    readiness: dict[str, object] = {
+        "wait_until": options.wait_until,
+        "wait_for_selector": options.wait_for_selector,
+        "post_load_wait_ms": options.post_load_wait_ms,
+        "scroll_strategy": {
+            "enabled": options.scroll_strategy.enabled,
+            "mode": options.scroll_strategy.mode,
+            "max_scrolls": options.scroll_strategy.max_scrolls,
+            "scroll_pause_ms": options.scroll_strategy.scroll_pause_ms,
+            "stop_selector": options.scroll_strategy.stop_selector,
+        },
+    }
+    if options.wait_for_selector:
+        try:
+            page.wait_for_selector(
+                options.wait_for_selector,
+                state="attached",
+                timeout=int(options.wait_for_selector_timeout_ms),
+            )
+            readiness["wait_for_selector_matched"] = True
+        except Exception as exc:
+            raise FetchError(
+                f"Playwright wait_for_selector timed out or failed for {url}: {options.wait_for_selector}",
+                "playwright_render",
+                url=url,
+            ) from exc
+    if options.post_load_wait_ms > 0:
+        page.wait_for_timeout(int(options.post_load_wait_ms))
+    readiness["scrolls_performed"] = _apply_scroll_strategy(page, url, options)
+    return readiness
+
+
+def _apply_scroll_strategy(page, url: str, options: PlaywrightOptions) -> int:
+    strategy = options.scroll_strategy
+    if not strategy.enabled or strategy.mode == "none":
+        return 0
+    scrolls = 0
+    previous_state: tuple[int, int] | None = None
+    for _ in range(max(0, int(strategy.max_scrolls))):
+        if _selector_present(page, url, strategy.stop_selector):
+            break
+        state = _scroll_page(page, url, strategy.mode)
+        scrolls += 1
+        if strategy.scroll_pause_ms > 0:
+            page.wait_for_timeout(int(strategy.scroll_pause_ms))
+        if _selector_present(page, url, strategy.stop_selector):
+            break
+        current_state = (int(state.get("scroll_top", 0)), int(state.get("scroll_height", 0)))
+        if previous_state is not None and current_state == previous_state:
+            break
+        previous_state = current_state
+    return scrolls
+
+
+def _selector_present(page, url: str, selector: str | None) -> bool:
+    if not selector:
+        return False
+    try:
+        return page.locator(selector).count() > 0
+    except Exception as exc:
+        raise FetchError(f"Playwright stop_selector failed for {url}: {selector}", "playwright_render", url=url) from exc
+
+
+def _scroll_page(page, url: str, mode: str) -> dict[str, int]:
+    try:
+        return page.evaluate(
+            """
+            (scrollMode) => {
+              const doc = document.documentElement || document.body;
+              const body = document.body || document.documentElement;
+              const viewportHeight = window.innerHeight || doc.clientHeight || 0;
+              if (scrollMode === "bottom") {
+                window.scrollTo(0, Math.max(doc.scrollHeight, body.scrollHeight));
+              } else if (scrollMode === "incremental") {
+                window.scrollBy(0, Math.max(Math.floor(viewportHeight / 2), 200));
+              } else {
+                window.scrollBy(0, viewportHeight || 800);
+              }
+              return {
+                scroll_top: Math.floor(window.scrollY || doc.scrollTop || body.scrollTop || 0),
+                scroll_height: Math.floor(Math.max(doc.scrollHeight || 0, body.scrollHeight || 0)),
+                viewport_height: Math.floor(viewportHeight || 0),
+              };
+            }
+            """,
+            mode,
+        )
+    except Exception as exc:
+        raise FetchError(f"Playwright scroll strategy failed for {url}: {mode}", "playwright_render", url=url) from exc
 
 
 class FakeRenderBackend:

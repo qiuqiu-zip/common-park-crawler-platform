@@ -138,6 +138,26 @@ def test_transforms_join_with_and_attr_alias():
     assert extract_fields(document.root, rules) == {"url": "/x", "title": "mixed case", "tags": "ONE|TWO"}
 
 
+def test_css_attribute_selectors_support_common_operators():
+    html = """
+    <section>
+      <a class="video primary" href="/video/BV123" data-kind="video-card" lang="zh-CN">Video</a>
+      <a class="video secondary" href="/audio/AV456" data-kind="audio-card" lang="en">Audio</a>
+    </section>
+    """
+    document = HTMLDocument(html)
+
+    assert [node.text for node in document.select('a[href*="/video/"]')] == ["Video"]
+    assert [node.text for node in document.select('a[href^="/video/"]')] == ["Video"]
+    assert [node.text for node in document.select('a[href$="BV123"]')] == ["Video"]
+    assert [node.text for node in document.select('a[class~="primary"]')] == ["Video"]
+    assert [node.text for node in document.select('a[lang|="zh"]')] == ["Video"]
+    assert extract_fields(
+        document.root,
+        [FieldRule(name="video_url", type="attr", selector='a[href*="/video/"]', attribute="href")],
+    ) == {"video_url": "/video/BV123"}
+
+
 def test_children_namespace_and_override():
     html = '<article><div class="seller"><span class="name">Acme</span><span>rating: 5</span></div></article>'
     document = HTMLDocument(html)

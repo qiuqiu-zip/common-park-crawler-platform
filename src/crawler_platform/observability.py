@@ -322,6 +322,7 @@ def build_task_report(store: Any, spider: SpiderConfig, task: TaskRecord) -> dic
             "total_records": item["total_records"],
             "missing_rate": item["missing_rate"],
             "status": item["status"],
+            "hint": item.get("hint"),
         }
         for item in field_quality
         if item.get("required") and item.get("empty_count")
@@ -518,10 +519,16 @@ def _transform_error_summary(warnings: list[Any]) -> list[dict[str, Any]]:
 
 
 def _record_quality_status(field_quality: list[dict[str, Any]], transform_errors: list[dict[str, Any]]) -> str:
+    if not field_quality:
+        return "unknown"
     statuses = {str(item.get("status")) for item in field_quality}
+    if statuses == {"unknown"}:
+        return "unknown"
     if "failed" in statuses or transform_errors:
         return "error"
     if "warning" in statuses:
+        return "warning"
+    if "unknown" in statuses:
         return "warning"
     return "ok"
 

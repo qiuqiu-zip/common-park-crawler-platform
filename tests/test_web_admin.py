@@ -120,8 +120,8 @@ def test_admin_static_resources_are_local_and_relative():
     assert re.search(r"https?://", all_text) is None
     assert "C:\\" not in all_text
     assert "fetch(`${API_BASE}${path}`" in javascript
-    assert 'src="/admin/assets/app.js?v=20260608b"' in html
-    assert 'href="/admin/assets/styles.css?v=20260608b"' in html
+    assert 'src="/admin/assets/app.js?v=20260609c"' in html
+    assert 'href="/admin/assets/styles.css?v=20260609c"' in html
 
 
 def test_admin_javascript_covers_required_api_paths():
@@ -201,7 +201,9 @@ def test_admin_envelope_and_json_editor_helpers_exist():
     assert "export function unwrapEnvelope" in api_js
     assert "payload.ok === false" in api_js
     assert "throw new ApiClientError" in api_js
+    assert "return { data: payload.data, meta: payload.meta || {} };" in api_js
     assert "***REDACTED***" in api_js
+    assert "function redactSensitiveValue" in api_js
     assert "export function parseJsonEditor" in components_js
     assert "Invalid JSON" in components_js
     assert "export function renderPager" in components_js
@@ -225,9 +227,20 @@ def test_admin_summary_panels_and_selection_states_exist():
     assert "Selected Log" in app
     assert "Metrics Snapshot" in app
     assert "state.selectedLog" in app
+    assert "state.spiderDraftMode" in app
+    assert "state.scheduleDraftMode" in app
     assert "observabilityRowId" in app
     assert "renderObservabilityPayload" in app
     assert "renderExportSummary" in app
+    assert "buildScheduleDraft" in app
+    assert "buildWorkerJobPayload" in app
+    assert "loadTaskReportById" in app
+    assert "open-task-report" in app
+    assert "new-schedule" in app
+    assert "No schedules yet - create a new schedule or save a spider first." in app
+    assert "Create or save a spider first before queueing a worker job." in app
+    assert "Saved example spider did not validate cleanly." in app
+    assert "schedule?.spider?.scheduler?.type" in app
     assert "rememberObservabilityInputs" in app
     assert "rememberExportInputs" in app
     assert "selected-row" in components_js

@@ -53,7 +53,7 @@ export function unwrapEnvelope(payload, status = 200) {
         meta: payload.meta,
       });
     }
-    return { data: redactSensitive(payload.data), meta: payload.meta || {} };
+    return { data: payload.data, meta: payload.meta || {} };
   }
   return { data: redactSensitive(payload), meta: {} };
 }
@@ -88,8 +88,21 @@ export function redactSensitive(value) {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => {
       const lowered = String(key).toLowerCase();
       const hidden = SENSITIVE_TOKENS.some((token) => lowered.includes(token));
-      return [key, hidden ? "***REDACTED***" : redactSensitive(item)];
+      return [key, hidden ? redactSensitiveValue(item) : redactSensitive(item)];
     }));
   }
   return value;
+}
+
+function redactSensitiveValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSensitiveValue(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactSensitiveValue(item)]));
+  }
+  if (value === null || value === undefined) {
+    return value;
+  }
+  return "***REDACTED***";
 }

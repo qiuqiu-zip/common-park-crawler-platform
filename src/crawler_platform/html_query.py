@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Iterable
 
@@ -73,7 +74,7 @@ class HTMLDocument:
         if not selector:
             return [self.root]
         current = [self.root]
-        for token in selector.strip().split():
+        for token in _tokenize_selector(selector):
             next_nodes: list[Node] = []
             for node in current:
                 next_nodes.extend(desc for desc in node.descendants() if _matches(desc, token))
@@ -95,29 +96,15 @@ class HTMLDocument:
         return []
 
 
-def _matches(node: Node, token: str) -> bool:
-    tag = None
-    id_value = None
-    classes: list[str] = []
-    attr_name = None
-    attr_value = None
+@dataclass(slots=True)
+class _AttrSelector:
+    name: str
+    operator: str | None = None
+    value: str | None = None
 
-    rest = token
-    if "[" in rest and rest.endswith("]"):
-        rest, attr_part = rest[:-1].split("[", 1)
-        if "=" in attr_part:
-            attr_name, attr_value = attr_part.split("=", 1)
-            attr_value = attr_value.strip("\"'")
-        else:
-            attr_name = attr_part
-    if "#" in rest:
-        rest, id_value = rest.split("#", 1)
-    if "." in rest:
-        parts = rest.split(".")
-        rest = parts[0]
-        classes = [part for part in parts[1:] if part]
-    if rest:
-        tag = rest.lower()
+
+def _matches(node: Node, token: str) -> bool:
+    tag, id_value, classes, attrs = _parse_simple_selector(token)
 
     if tag and node.tag != tag:
         return False
@@ -126,11 +113,135 @@ def _matches(node: Node, token: str) -> bool:
     class_attr = set(node.attrs.get("class", "").split())
     if classes and not all(item in class_attr for item in classes):
         return False
-    if attr_name and attr_name not in node.attrs:
-        return False
-    if attr_name and attr_value is not None and node.attrs.get(attr_name) != attr_value:
-        return False
+    for attr in attrs:
+        if not _matches_attr(node, attr):
+            return False
     return True
+
+
+def _matches_attr(node: Node, selector: _AttrSelector) -> bool:
+    value = node.attrs.get(selector.name)
+    if value is None:
+        return False
+    if selector.operator is None:
+        return True
+    expected = selector.value or ""
+    if selector.operator == "=":
+        return value == expected
+    if selector.operator == "*=":
+        return expected in value
+    if selector.operator == "^=":
+        return value.startswith(expected)
+    if selector.operator == "$=":
+        return value.endswith(expected)
+    if selector.operator == "~=":
+        return expected in value.split()
+    if selector.operator == "|=":
+        return value == expected or value.startswith(f"{expected}-")
+    return False
+
+
+def _tokenize_selector(selector: str) -> list[str]:
+    tokens: list[str] = []
+    buffer: list[str] = []
+    bracket_depth = 0
+    quote: str | None = None
+    for char in selector.strip():
+        if quote is not None:
+            buffer.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'} and bracket_depth > 0:
+            quote = char
+            buffer.append(char)
+            continue
+        if char == "[":
+            bracket_depth += 1
+            buffer.append(char)
+            continue
+        if char == "]":
+            bracket_depth = max(0, bracket_depth - 1)
+            buffer.append(char)
+            continue
+        if char.isspace() and bracket_depth == 0:
+            if buffer:
+                tokens.append("".join(buffer))
+                buffer = []
+            continue
+        buffer.append(char)
+    if buffer:
+        tokens.append("".join(buffer))
+    return tokens
+
+
+def _parse_simple_selector(token: str) -> tuple[str | None, str | None, list[str], list[_AttrSelector]]:
+    attrs: list[_AttrSelector] = []
+    rest: list[str] = []
+    index = 0
+    while index < len(token):
+        if token[index] == "[":
+            end = _find_attr_end(token, index)
+            if end == -1:
+                rest.append(token[index:])
+                break
+            attrs.append(_parse_attr_selector(token[index + 1 : end]))
+            index = end + 1
+            continue
+        rest.append(token[index])
+        index += 1
+
+    selector = "".join(rest)
+    tag, id_value, classes = _parse_tag_id_classes(selector)
+    return tag, id_value, classes, attrs
+
+
+def _find_attr_end(token: str, start: int) -> int:
+    quote: str | None = None
+    for index in range(start + 1, len(token)):
+        char = token[index]
+        if quote is not None:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == "]":
+            return index
+    return -1
+
+
+def _parse_attr_selector(part: str) -> _AttrSelector:
+    for operator in ("~=", "|=", "^=", "$=", "*=", "="):
+        if operator in part:
+            name, value = part.split(operator, 1)
+            return _AttrSelector(name=name.strip(), operator=operator, value=value.strip().strip("\"'"))
+    return _AttrSelector(name=part.strip())
+
+
+def _parse_tag_id_classes(selector: str) -> tuple[str | None, str | None, list[str]]:
+    tag: str | None = None
+    id_value: str | None = None
+    classes: list[str] = []
+    index = 0
+    if selector and selector[0] not in "#.":
+        start = 0
+        while index < len(selector) and selector[index] not in "#.":
+            index += 1
+        tag = selector[start:index].lower()
+    while index < len(selector):
+        prefix = selector[index]
+        index += 1
+        start = index
+        while index < len(selector) and selector[index] not in "#.":
+            index += 1
+        value = selector[start:index]
+        if prefix == "#" and value:
+            id_value = value
+        elif prefix == "." and value:
+            classes.append(value)
+    return tag, id_value, classes
 
 
 def _xpath_to_selector(expr: str) -> str:

@@ -72,7 +72,7 @@ def test_validate_reports_missing_required_fields():
 
     assert not result.valid
     assert any(issue.path == "id" for issue in result.issues)
-    assert any(issue.path == "start_urls" for issue in result.issues)
+    assert any(issue.path == "start_urls | request.url | seed" for issue in result.issues)
 
 
 def test_validate_reports_illegal_values():
@@ -131,6 +131,72 @@ def test_validate_reports_invalid_pagination_and_export():
     assert not result.valid
     assert any(issue.path == "pagination.type" for issue in result.issues)
     assert any(issue.path == "export.formats" for issue in result.issues)
+
+
+def test_validate_playwright_wait_and_scroll_controls():
+    config = _valid_config()
+    config["type"] = "playwright"
+    config.pop("items_json_path", None)
+    config["item_selector"] = "article.item"
+    config["fields"] = [{"name": "title", "type": "css", "selector": "a.title"}]
+    config["playwright"] = {
+        "enabled": True,
+        "wait_until": "domcontentloaded",
+        "wait_for_selector": ".video-card",
+        "wait_for_selector_timeout_ms": 2500,
+        "post_load_wait_ms": 500,
+        "scroll_strategy": {
+            "enabled": True,
+            "mode": "bottom",
+            "max_scrolls": 3,
+            "scroll_pause_ms": 200,
+            "stop_selector": ".video-card",
+        },
+    }
+
+    result = validate_spider_config(config)
+    schema = spider_config_json_schema()
+
+    assert result.valid is True
+    assert schema["properties"]["playwright"]["properties"]["wait_for_selector_timeout_ms"]["minimum"] == 1
+    assert schema["properties"]["playwright"]["properties"]["scroll_strategy"]["properties"]["mode"]["enum"] == [
+        "none",
+        "viewport",
+        "incremental",
+        "bottom",
+    ]
+
+
+def test_validate_rejects_invalid_playwright_wait_and_scroll_controls():
+    config = _valid_config()
+    config["type"] = "playwright"
+    config.pop("items_json_path", None)
+    config["item_selector"] = "article.item"
+    config["fields"] = [{"name": "title", "type": "css", "selector": "a.title"}]
+    config["playwright"] = {
+        "enabled": True,
+        "wait_for_selector": "",
+        "wait_for_selector_timeout_ms": 0,
+        "post_load_wait_ms": -1,
+        "scroll_strategy": {
+            "enabled": True,
+            "mode": "sideways",
+            "max_scrolls": 0,
+            "scroll_pause_ms": -10,
+            "stop_selector": "",
+        },
+    }
+
+    result = validate_spider_config(config)
+
+    assert not result.valid
+    assert any(issue.path == "playwright.wait_for_selector" for issue in result.issues)
+    assert any(issue.path == "playwright.wait_for_selector_timeout_ms" for issue in result.issues)
+    assert any(issue.path == "playwright.post_load_wait_ms" for issue in result.issues)
+    assert any(issue.path == "playwright.scroll_strategy.mode" for issue in result.issues)
+    assert any(issue.path == "playwright.scroll_strategy.max_scrolls" for issue in result.issues)
+    assert any(issue.path == "playwright.scroll_strategy.scroll_pause_ms" for issue in result.issues)
+    assert any(issue.path == "playwright.scroll_strategy.stop_selector" for issue in result.issues)
 
 
 def test_json_schema_document_exists_and_describes_protocol():

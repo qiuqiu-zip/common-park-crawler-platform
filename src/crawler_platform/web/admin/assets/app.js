@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut, ApiClientError } from "./api.js?v=20260608b";
+import { apiDelete, apiGet, apiPost, apiPut, ApiClientError } from "./api.js?v=20260609c";
 import {
   escapeHtml,
   formatJson,
@@ -11,7 +11,7 @@ import {
   renderTable,
   renderToolbar,
   setStatus,
-} from "./components.js?v=20260608b";
+} from "./components.js?v=20260609c";
 
 const view = document.getElementById("view");
 const toast = document.getElementById("toast");
@@ -311,6 +311,8 @@ const state = {
   selectedSession: null,
   selectedExport: null,
   selectedLog: null,
+  spiderDraftMode: false,
+  scheduleDraftMode: false,
   observabilityResult: null,
   observabilityInputs: {
     reportTaskId: "",
@@ -333,21 +335,40 @@ const state = {
 const defaultSpiderConfig = {
   id: "new-spider",
   name: "New Spider",
+  version: "1.0",
   type: "http",
   start_urls: ["examples/fixtures/local_html_list.html"],
   item_selector: "article",
   unique_fields: ["title"],
+  request: {
+    response_type: "html",
+  },
+  scheduler: {
+    enabled: false,
+    type: "manual",
+  },
   fields: [{ name: "title", type: "css", selector: "h1" }],
 };
 
 const defaultScheduleConfig = {
-  spider: defaultSpiderConfig,
+  spider: {
+    ...defaultSpiderConfig,
+    scheduler: {
+      enabled: true,
+      type: "interval",
+      interval_seconds: 300,
+      timezone: "UTC",
+      misfire_policy: "skip",
+      max_instances: 1,
+    },
+  },
 };
 
 const defaultWorkerJob = {
   spider_id: "",
   source: "admin",
   priority: 0,
+  max_attempts: 1,
 };
 
 function loadInitialView() {
@@ -932,7 +953,7 @@ function previewFieldNames(names, limit = 4) {
 }
 
 function extractSchedulerType(schedule) {
-  return firstFilled(schedule?.scheduler?.type, schedule?.spider?.type, schedule?.type, "unknown");
+  return firstFilled(schedule?.scheduler?.type, schedule?.spider?.scheduler?.type, schedule?.type, "unknown");
 }
 
 function latestEventRows(logs) {
@@ -1043,7 +1064,7 @@ function buildObservabilityResult(path, data) {
       data,
     };
   }
-  if (path.includes("/observability/reports/tasks/")) {
+  if (path.includes("/observability/reports/tasks/") || /\/tasks\/.+\/report$/.test(path)) {
     return {
       kind: "report",
       title: "Task Report",
@@ -1078,6 +1099,19 @@ function buildObservabilityResult(path, data) {
 function renderObservabilityPayload(result) {
   if (!result?.data) {
     return renderEmptyState("No observability result", "Use the controls above to load a report, trace, or metrics snapshot.");
+  }
+  if (result.kind === "error") {
+    return renderSummaryPanel({
+      title: result.title,
+      subtitle: result.subtitle,
+      badges: [{ label: "Not found", tone: "warning" }],
+      fields: [
+        summaryField("Message", result.data.message),
+        summaryField("Target ID", result.data.target_id || "N/A"),
+      ],
+      raw: result.data,
+      rawLabel: "Show error JSON / 查看错误 JSON",
+    });
   }
   if (result.kind === "metrics") {
     return renderObservabilitySummary(result.title, result.data, result.subtitle);
@@ -1118,8 +1152,15 @@ function renderObservabilityPayload(result) {
         summaryField("Status", firstFilled(data.status, "N/A")),
         summaryField("Duration", data.duration_ms ? `${Math.round(Number(data.duration_ms))} ms` : "N/A"),
         summaryField("Requests total", firstFilled(data.total_requests, 0)),
+        summaryField("Requests success", firstFilled(data.success_requests, 0)),
         summaryField("Requests failed", firstFilled(data.failed_requests, 0)),
         summaryField("Records saved", firstFilled(data.saved_records, 0)),
+        summaryField("Record quality", firstFilled(data.record_quality_status, "N/A")),
+        summaryField("Crawl policy", firstFilled(
+          data.crawl_policy_summary,
+          data.crawl_policy?.enabled ? `Checked ${firstFilled(data.crawl_policy.policy_checked_urls, 0)} URLs` : "Disabled",
+          "N/A",
+        )),
         summaryField("Warnings", firstFilled(data.warnings_count, (data.warning_summary || []).length, 0)),
         summaryField("Errors", firstFilled(data.errors_count, (data.error_summary || []).length, 0)),
         summaryField("Trace ID", shortId(data.trace_id), data.trace_id || ""),
@@ -1149,6 +1190,126 @@ function applyStartUrl(config, startUrl) {
     ...config,
     start_urls: [startUrl],
   };
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+async function firstAvailableSpiderConfig() {
+  const response = await apiGet("/spiders", { sort_by: "id" }).catch(() => ({ data: [] }));
+  const spiders = response.data || [];
+  const first = spiders.find((item) => item.enabled !== false) || spiders[0];
+  if (!first?.id) {
+    return null;
+  }
+  return await safeData(`/spiders/${encodeURIComponent(first.id)}`) || first;
+}
+
+function buildSpiderDraft() {
+  return cloneJson(defaultSpiderConfig);
+}
+
+function buildScheduleDraft(spider) {
+  const sourceSpider = spider ? cloneJson(spider) : buildSpiderDraft();
+  const sourceScheduler = sourceSpider.scheduler || {};
+  return {
+    spider: {
+      ...sourceSpider,
+      scheduler: {
+        ...sourceScheduler,
+        enabled: true,
+        type: sourceScheduler.type && sourceScheduler.type !== "manual" ? sourceScheduler.type : "interval",
+        interval_seconds: sourceScheduler.interval_seconds || 300,
+        timezone: sourceScheduler.timezone || "UTC",
+        misfire_policy: sourceScheduler.misfire_policy || "skip",
+        max_instances: sourceScheduler.max_instances || 1,
+      },
+    },
+  };
+}
+
+function buildWorkerJobPayload(spider) {
+  return {
+    ...defaultWorkerJob,
+    spider_id: spider?.id || "",
+  };
+}
+
+function buildObservabilityErrorResult(title, message, targetId = "") {
+  return {
+    kind: "error",
+    title,
+    subtitle: "The requested report could not be loaded.",
+    data: {
+      message,
+      target_id: targetId,
+    },
+  };
+}
+
+async function fetchObservabilityResult(path, options = {}) {
+  try {
+    const result = await apiGet(path);
+    return buildObservabilityResult(path, result.data);
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 404) {
+      return buildObservabilityErrorResult(options.title || "Observability result", error.message, options.targetId || "");
+    }
+    throw error;
+  }
+}
+
+async function resolveTaskIdInput(value) {
+  const taskId = String(value || "").trim();
+  if (!taskId) {
+    throw new Error("Task ID is required");
+  }
+  const tasks = (await apiGet("/tasks").catch(() => ({ data: [] }))).data || [];
+  const exact = tasks.find((task) => task.id === taskId);
+  if (exact?.id) {
+    return exact.id;
+  }
+  const prefixMatches = tasks.filter((task) => task.id && String(task.id).startsWith(taskId));
+  if (prefixMatches.length === 1) {
+    return prefixMatches[0].id;
+  }
+  if (prefixMatches.length > 1) {
+    throw new Error("Task ID prefix matches multiple tasks. Please enter the full task ID.");
+  }
+  return taskId;
+}
+
+async function loadTaskReportById(taskId) {
+  const resolvedTaskId = await resolveTaskIdInput(taskId);
+  state.observabilityInputs.reportTaskId = resolvedTaskId;
+  return fetchObservabilityResult(`/tasks/${encodeURIComponent(resolvedTaskId)}/report`, {
+    title: "Task Report",
+    targetId: resolvedTaskId,
+  });
+}
+
+async function launchTaskForSpider(config, options = {}) {
+  const startUrl = String(options.startUrl || "").trim();
+  const shouldUseInlinePayload = Boolean(options.persistInline) || state.spiderDraftMode || !state.selectedSpider;
+  let result;
+  if (startUrl) {
+    const payload = applyStartUrl(config, startUrl);
+    if (shouldUseInlinePayload) {
+      result = await apiPost("/tasks/run", { spider: payload });
+    } else {
+      result = await apiPost(`/tasks/run/${encodeURIComponent(config.id)}?start_url=${encodeURIComponent(startUrl)}`);
+    }
+    state.selectedSpider = payload.id;
+  } else if (shouldUseInlinePayload) {
+    result = await apiPost("/tasks/run", { spider: config });
+    state.selectedSpider = config.id;
+  } else {
+    result = await apiPost("/tasks/run", { spider_id: config.id });
+  }
+  state.spiderDraftMode = false;
+  state.selectedTask = result.data.task_id || result.data.id;
+  return result.data;
 }
 
 async function renderDashboard() {
@@ -1344,15 +1505,29 @@ async function renderSpiders() {
   const spiders = spidersResponse.data || [];
   if (reviewEmptyMode()) {
     state.selectedSpider = null;
-  } else if (!state.selectedSpider && spiders[0]) {
+  } else if (!state.spiderDraftMode && !state.selectedSpider && spiders[0]) {
     state.selectedSpider = spiders[0].id;
   }
-  const selected = state.selectedSpider ? await safeData(`/spiders/${encodeURIComponent(state.selectedSpider)}`) : null;
-  const editableSpider = selected || defaultSpiderConfig;
+  const selected = !state.spiderDraftMode && state.selectedSpider ? await safeData(`/spiders/${encodeURIComponent(state.selectedSpider)}`) : null;
+  const editableSpider = state.spiderDraftMode ? buildSpiderDraft() : (selected || buildSpiderDraft());
   const startUrl = editableSpider.start_urls?.[0] || "";
   const spiderFieldRows = configFieldRows(editableSpider.fields || []);
   const spiderTypeLabel = titleCase(firstFilled(editableSpider.type, "unknown"));
   const schedulerType = titleCase(firstFilled(editableSpider.scheduler?.type, "manual"));
+  const spiderActions = state.spiderDraftMode
+    ? renderToolbar([
+      { label: t("format"), action: "format-spider" },
+      { label: t("validate"), action: "validate-spider" },
+      { label: t("save"), action: "save-spider", primary: true },
+      { label: t("run"), action: "run-spider" },
+    ])
+    : renderToolbar([
+      { label: t("format"), action: "format-spider" },
+      { label: t("validate"), action: "validate-spider" },
+      { label: t("save"), action: "save-spider", primary: true },
+      { label: t("run"), action: "run-spider" },
+      { label: t("delete"), action: "delete-spider" },
+    ]);
   view.innerHTML = `
     <div class="view-header"><h2>${t("spiders")}</h2>${renderToolbar([{ label: t("new"), action: "new-spider" }, { label: t("refresh"), action: "refresh", primary: true }])}</div>
     <section class="split">
@@ -1366,8 +1541,10 @@ async function renderSpiders() {
       </div>
       <div class="panel-stack">
         ${renderSummaryPanel({
-          title: "Spider Summary",
-          subtitle: state.selectedSpider
+          title: state.spiderDraftMode ? "New Spider" : "Spider Summary",
+          subtitle: state.spiderDraftMode
+            ? "New spider draft. Review the minimal valid config, then validate, save, or run it."
+            : state.selectedSpider
             ? `Current spider: ${editableSpider.id}. Review the operator-facing summary before opening the full JSON editor.`
             : "New spider draft. Fill in the editor below when you are ready to save.",
           badges: [
@@ -1376,13 +1553,7 @@ async function renderSpiders() {
             { label: editableSpider.playwright?.enabled ? "Playwright" : "Direct fetch", tone: editableSpider.playwright?.enabled ? "warning" : "neutral" },
             { label: schedulerType, tone: "running" },
           ],
-          actions: renderToolbar([
-            { label: t("format"), action: "format-spider" },
-            { label: t("validate"), action: "validate-spider" },
-            { label: t("save"), action: "save-spider", primary: true },
-            { label: t("run"), action: "run-spider" },
-            { label: t("delete"), action: "delete-spider" },
-          ]),
+          actions: spiderActions,
           fields: [
             summaryField("Spider ID", editableSpider.id),
             summaryField("Name", editableSpider.name),
@@ -1443,6 +1614,7 @@ async function renderTasks() {
     { label: t("cancel"), action: "cancel-task" },
     { label: t("retry"), action: "retry-task" },
     { label: t("rerun"), action: "rerun-task" },
+    { label: "Open report", action: "open-task-report" },
     { label: t("export"), action: "export-task", primary: true },
   ]);
   view.innerHTML = `
@@ -1503,13 +1675,30 @@ function readTaskFilters() {
 async function renderScheduler() {
   const schedules = (await apiGet("/scheduler/schedules")).data || [];
   const runs = (await apiGet("/scheduler/runs").catch(() => ({ data: [] }))).data || [];
-  if (!state.selectedSchedule && schedules[0]) {
+  const defaultSpider = await firstAvailableSpiderConfig();
+  if (!state.scheduleDraftMode && !state.selectedSchedule && schedules[0]) {
     state.selectedSchedule = schedules[0].id;
   }
-  const selected = state.selectedSchedule ? await safeData(`/scheduler/schedules/${encodeURIComponent(state.selectedSchedule)}`) : null;
-  const scheduleType = extractSchedulerType(selected);
+  const selected = !state.scheduleDraftMode && state.selectedSchedule ? await safeData(`/scheduler/schedules/${encodeURIComponent(state.selectedSchedule)}`) : null;
+  const scheduleDraft = state.scheduleDraftMode ? buildScheduleDraft(defaultSpider) : null;
+  const editableSchedule = scheduleDraft || (selected ? { spider: selected.spider || selected } : defaultScheduleConfig);
+  const scheduleType = extractSchedulerType(selected || editableSchedule);
+  const scheduleEmptyText = "No schedules yet - create a new schedule or save a spider first.";
+  const scheduleActions = state.scheduleDraftMode
+    ? renderToolbar([
+      { label: t("format"), action: "format-schedule" },
+      { label: t("save"), action: "save-schedule", primary: true },
+    ])
+    : renderToolbar([
+      { label: t("format"), action: "format-schedule" },
+      { label: `${t("save")} ${shortId(selected?.id)}`, action: "save-schedule", primary: true },
+      { label: `${t("trigger")} ${shortId(selected?.id)}`, action: "trigger-schedule" },
+      { label: `${t("pause")} ${shortId(selected?.id)}`, action: "pause-schedule" },
+      { label: `${t("resume")} ${shortId(selected?.id)}`, action: "resume-schedule" },
+      { label: `${t("disable")} ${shortId(selected?.id)}`, action: "disable-schedule" },
+    ]);
   view.innerHTML = `
-    <div class="view-header"><h2>${t("scheduler")}</h2>${renderToolbar([{ label: t("run_due"), action: "run-due" }, { label: t("enqueue_due"), action: "enqueue-due" }, { label: t("refresh"), action: "refresh", primary: true }])}</div>
+    <div class="view-header"><h2>${t("scheduler")}</h2>${renderToolbar([{ label: "New schedule", action: "new-schedule" }, { label: t("run_due"), action: "run-due" }, { label: t("enqueue_due"), action: "enqueue-due" }, { label: t("refresh"), action: "refresh", primary: true }])}</div>
     <section class="split">
       <div>
         ${renderTable([
@@ -1518,7 +1707,7 @@ async function renderScheduler() {
           { label: "Schedule type", value: (row) => extractSchedulerType(row) },
           { label: t("status"), html: (row) => renderStatusBadge(row.status) },
           { label: "Next run", value: (row) => formatDateTime(row.next_run_at) },
-        ], schedules, t("no_schedules"), { selectedId: state.selectedSchedule })}
+        ], schedules, scheduleEmptyText, { selectedId: state.selectedSchedule })}
         <h3>${t("runs")}</h3>
         ${renderTable([
           { label: t("run"), html: (row) => shortIdHtml(row.scheduler_run_id) },
@@ -1528,36 +1717,37 @@ async function renderScheduler() {
         ], runs, t("no_scheduler_runs"), { selectable: false })}
       </div>
       <div class="editor-panel">
-        ${selected ? renderSummaryPanel({
-          title: "Schedule Summary",
-          subtitle: `Current schedule: ${shortId(selected.id)}. Type must never render blank.`,
+        ${(selected || state.scheduleDraftMode) ? renderSummaryPanel({
+          title: state.scheduleDraftMode ? "New Schedule" : "Schedule Summary",
+          subtitle: state.scheduleDraftMode
+            ? (defaultSpider
+              ? `New schedule draft for spider ${defaultSpider.id}. Save it first, then trigger or run due.`
+              : "New schedule draft using the default local spider template. Save it first, then trigger or run due.")
+            : `Current schedule: ${shortId(selected.id)}. Type must never render blank.`,
           badges: [
-            { label: statusMeta(selected.status).label, tone: statusMeta(selected.status).tone },
+            { label: statusMeta(firstFilled(selected?.status, state.scheduleDraftMode ? "enabled" : "unknown")).label, tone: statusMeta(firstFilled(selected?.status, state.scheduleDraftMode ? "enabled" : "unknown")).tone },
             { label: titleCase(scheduleType), tone: "neutral" },
           ],
-          actions: renderToolbar([
-            { label: `${t("save")} ${shortId(selected.id)}`, action: "save-schedule", primary: true },
-            { label: `${t("trigger")} ${shortId(selected.id)}`, action: "trigger-schedule" },
-            { label: `${t("pause")} ${shortId(selected.id)}`, action: "pause-schedule" },
-            { label: `${t("resume")} ${shortId(selected.id)}`, action: "resume-schedule" },
-            { label: `${t("disable")} ${shortId(selected.id)}`, action: "disable-schedule" },
-          ]),
+          actions: scheduleActions,
           fields: [
-            htmlSummaryField("Schedule ID", shortIdHtml(selected.id), selected.id),
-            summaryField("Spider", selected.spider_id),
+            summaryField("Schedule ID", firstFilled(selected?.id, "Draft until save")),
+            summaryField("Spider", firstFilled(selected?.spider_id, editableSchedule.spider?.id, "Not selected")),
             summaryField("Schedule type", scheduleType),
-            summaryField("Spider type", firstFilled(selected.spider?.type, selected.type, "unknown")),
-            summaryField("Status", statusMeta(selected.status).label),
-            summaryField("Next run", formatDateTime(selected.next_run_at)),
-            summaryField("Last run", formatDateTime(selected.last_run_at)),
-            summaryField("Warnings", (selected.warnings || []).join("; ") || "None"),
+            summaryField("Spider type", firstFilled(selected?.spider?.type, editableSchedule.spider?.type, selected?.type, "unknown")),
+            summaryField("Status", statusMeta(firstFilled(selected?.status, "enabled")).label),
+            summaryField("Next run", formatDateTime(firstFilled(selected?.next_run_at, editableSchedule.spider?.scheduler?.start_at))),
+            summaryField("Last run", formatDateTime(selected?.last_run_at)),
+            summaryField("Warnings", (selected?.warnings || []).join("; ") || "None"),
           ],
-          raw: selected,
+          raw: selected || editableSchedule,
           rawLabel: "Show raw schedule JSON / 查看原始 JSON",
-        }) : renderEmptyState("Select a schedule", "Choose a schedule on the left to inspect it.")}
+        }) : renderEmptyState("Select a schedule", "Choose a schedule on the left, or create a new schedule from an existing spider.")}
         <details class="raw-json-collapsible">
           <summary>Edit JSON / Raw config</summary>
-          <textarea id="scheduleEditor" spellcheck="false">${escapeHtml(formatJson(selected ? { spider: selected.spider || selected } : defaultScheduleConfig))}</textarea>
+          <div class="details-body">
+            ${!defaultSpider && state.scheduleDraftMode ? `<p class="helper-text">No saved spider was found, so this draft starts from the local default spider template.</p>` : ""}
+            <textarea id="scheduleEditor" spellcheck="false">${escapeHtml(formatJson(editableSchedule))}</textarea>
+          </div>
         </details>
       </div>
     </section>
@@ -1568,6 +1758,8 @@ async function renderWorker() {
   const jobs = (await apiGet("/worker/jobs")).data || [];
   const stats = await safeData("/worker/stats");
   const deadLetters = await safeData("/worker/dead-letters");
+  const defaultSpider = await firstAvailableSpiderConfig();
+  const defaultJob = buildWorkerJobPayload(defaultSpider);
   if (reviewEmptyMode()) {
     state.selectedJob = null;
   } else if (!state.selectedJob && jobs[0]) {
@@ -1661,11 +1853,18 @@ async function renderWorker() {
         <details class="raw-json-collapsible">
           <summary>Queue a new job JSON</summary>
           <div class="details-body">
+            ${defaultSpider
+              ? `<p class="helper-text">The default payload points at spider ${escapeHtml(defaultSpider.id)} so Enqueue can succeed without guessing a spider_id.</p>`
+              : `<div class="empty-state"><strong>Create or save a spider first</strong><p>Please create a spider or save one from Examples before queueing a worker job.</p></div>
+                 <div class="inline-actions">
+                   <button type="button" data-action="open-spiders">${t("spiders")}</button>
+                   <button type="button" data-action="open-examples">${t("examples")}</button>
+                 </div>`}
             <div class="inline-actions">
               <button type="button" data-action="format-job">${t("format")}</button>
               <button type="button" data-action="enqueue-job" class="primary">${t("enqueue")}</button>
             </div>
-            <textarea id="jobEditor" spellcheck="false">${escapeHtml(formatJson(defaultWorkerJob))}</textarea>
+            <textarea id="jobEditor" spellcheck="false">${escapeHtml(formatJson(defaultJob))}</textarea>
           </div>
         </details>
       </div>
@@ -1975,15 +2174,18 @@ async function selectedExampleConfig() {
 async function saveSelectedExampleSpider() {
   const config = await selectedExampleConfig();
   const result = await apiPost("/spiders", config);
+  const validation = await apiPost("/spiders/validate", result.data);
+  if (!validation.data.valid) {
+    throw new Error("Saved example spider did not validate cleanly.");
+  }
   state.selectedSpider = result.data.id;
+  state.spiderDraftMode = false;
   return result.data;
 }
 
 async function runSelectedExample() {
   const spider = await saveSelectedExampleSpider();
-  const result = await apiPost("/tasks/run", { spider_id: spider.id });
-  state.selectedTask = result.data.task_id || result.data.id;
-  return result.data;
+  return launchTaskForSpider(spider);
 }
 
 async function latestTaskRecord() {
@@ -2082,6 +2284,7 @@ async function handleAction(action) {
     }
     if (action === "new-spider") {
       state.selectedSpider = null;
+      state.spiderDraftMode = true;
       return renderSpiders();
     }
     if (action === "format-spider") {
@@ -2106,8 +2309,11 @@ async function handleAction(action) {
     }
     if (action === "save-spider") {
       const payload = readSpiderEditorConfig();
-      const result = state.selectedSpider ? await apiPut(`/spiders/${encodeURIComponent(payload.id)}`, payload) : await apiPost("/spiders", payload);
+      const result = state.selectedSpider && !state.spiderDraftMode
+        ? await apiPut(`/spiders/${encodeURIComponent(state.selectedSpider)}`, payload)
+        : await apiPost("/spiders", payload);
       state.selectedSpider = result.data.id;
+      state.spiderDraftMode = false;
       return renderSpiders();
     }
     if (action === "delete-spider") {
@@ -2118,8 +2324,8 @@ async function handleAction(action) {
     }
     if (action === "run-spider") {
       const payload = readSpiderEditorConfig();
-      await apiPost("/tasks/run", { spider_id: payload.id });
-      return renderSpiders();
+      await launchTaskForSpider(payload);
+      return setActiveView("tasks");
     }
     if (action === "run-spider-with-start-url") {
       const startUrl = readStartUrlInput();
@@ -2127,13 +2333,8 @@ async function handleAction(action) {
         throw new Error(t("start_url_required"));
       }
       const payload = applyStartUrl(readSpiderEditorConfig(), startUrl);
-      const spiderId = state.selectedSpider || payload.id;
       writeSpiderEditorConfig(payload);
-      const result = spiderId
-        ? await apiPost(`/tasks/run/${encodeURIComponent(spiderId)}?start_url=${encodeURIComponent(startUrl)}`)
-        : await apiPost("/tasks/run", { spider: payload });
-      state.selectedSpider = payload.id;
-      state.selectedTask = result.data.task_id || result.data.id;
+      await launchTaskForSpider(payload, { startUrl });
       return setActiveView("tasks");
     }
     if (action === "apply-task-filters") {
@@ -2145,6 +2346,15 @@ async function handleAction(action) {
       const id = selectedId("selectedTask");
       if (id) await apiPost(`/tasks/${encodeURIComponent(id)}/${verb}`, { reason: "admin" });
       return renderTasks();
+    }
+    if (action === "open-task-report") {
+      const id = selectedId("selectedTask");
+      if (!id) {
+        return;
+      }
+      state.observabilityInputs.reportTaskId = id;
+      state.observabilityResult = await loadTaskReportById(id);
+      return setActiveView("observability");
     }
     if (action === "export-task") {
       const id = selectedId("selectedTask");
@@ -2160,8 +2370,16 @@ async function handleAction(action) {
       document.getElementById("scheduleEditor").value = formatJson(parseJsonEditor(document.getElementById("scheduleEditor").value, defaultScheduleConfig));
       return;
     }
+    if (action === "new-schedule") {
+      state.selectedSchedule = null;
+      state.scheduleDraftMode = true;
+      return renderScheduler();
+    }
     if (action === "save-schedule") {
-      await apiPost("/scheduler/schedules", parseJsonEditor(document.getElementById("scheduleEditor").value, defaultScheduleConfig));
+      const payload = parseJsonEditor(document.getElementById("scheduleEditor").value, defaultScheduleConfig);
+      const result = await apiPost("/scheduler/schedules", payload);
+      state.selectedSchedule = result.data.schedule?.id || result.data.spider_id || payload.spider?.id || null;
+      state.scheduleDraftMode = false;
       return renderScheduler();
     }
     if (action === "run-due") {
@@ -2183,11 +2401,23 @@ async function handleAction(action) {
       return;
     }
     if (action === "enqueue-job") {
-      await apiPost("/worker/jobs", parseJsonEditor(document.getElementById("jobEditor").value, defaultWorkerJob));
+      let payload = parseJsonEditor(document.getElementById("jobEditor").value, defaultWorkerJob);
+      if (!payload.spider_id && !payload.spider) {
+        const fallbackSpider = await firstAvailableSpiderConfig();
+        if (!fallbackSpider?.id) {
+          throw new Error("Create or save a spider first before queueing a worker job.");
+        }
+        payload = { ...payload, spider_id: fallbackSpider.id };
+      }
+      const result = await apiPost("/worker/jobs", payload);
+      state.selectedJob = result.data.job_id || result.data.id || null;
+      showToast(`Queued job ${shortId(firstFilled(result.data.job_id, result.data.id))}`, "success");
       return renderWorker();
     }
     if (action === "worker-run-once") {
-      await apiPost("/worker/run-once", {});
+      const result = await apiPost("/worker/run-once", {});
+      state.selectedJob = result.data.job_id || state.selectedJob;
+      state.selectedTask = result.data.task_id || state.selectedTask;
       return renderWorker();
     }
     if (action === "worker-run-until-empty") {
@@ -2225,7 +2455,9 @@ async function handleAction(action) {
     }
     if (action === "load-task-report") {
       rememberObservabilityInputs();
-      return loadObservability(`/observability/reports/tasks/${encodeURIComponent(requiredInputValue("reportTaskId", "Task ID"))}`);
+      const taskId = requiredInputValue("reportTaskId", "Task ID");
+      state.observabilityResult = await loadTaskReportById(taskId);
+      return renderObservability();
     }
     if (action === "load-job-report") {
       rememberObservabilityInputs();
@@ -2279,8 +2511,7 @@ async function handleAction(action) {
 async function loadObservability(path) {
   const output = document.getElementById("observabilityOutput");
   if (output) {
-    const result = await apiGet(path);
-    state.observabilityResult = buildObservabilityResult(path, result.data);
+    state.observabilityResult = await fetchObservabilityResult(path, { title: "Observability result" });
     output.innerHTML = renderObservabilityPayload(state.observabilityResult);
   }
 }
@@ -2303,9 +2534,15 @@ view.addEventListener("click", (event) => {
   }
   const id = row.dataset.rowId;
   if (state.activeView === "examples") state.selectedExample = id;
-  if (state.activeView === "spiders") state.selectedSpider = id;
+  if (state.activeView === "spiders") {
+    state.selectedSpider = id;
+    state.spiderDraftMode = false;
+  }
   if (state.activeView === "tasks") state.selectedTask = id;
-  if (state.activeView === "scheduler") state.selectedSchedule = id;
+  if (state.activeView === "scheduler") {
+    state.selectedSchedule = id;
+    state.scheduleDraftMode = false;
+  }
   if (state.activeView === "worker") state.selectedJob = id;
   if (state.activeView === "sessions") state.selectedSession = id;
   if (state.activeView === "exports") state.selectedExport = id;

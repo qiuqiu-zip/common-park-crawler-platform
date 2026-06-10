@@ -52,7 +52,8 @@
       "type": [
         "array",
         "object"
-      ]
+      ],
+      "description": "Alternative seed source when start_urls is absent."
     },
     "item_selector": {
       "type": [
@@ -1298,6 +1299,58 @@
             "networkidle"
           ],
           "default": "networkidle"
+        },
+        "wait_for_selector": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wait_for_selector_timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10000
+        },
+        "post_load_wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "scroll_strategy": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "none",
+                "viewport",
+                "incremental",
+                "bottom"
+              ],
+              "default": "none"
+            },
+            "max_scrolls": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            },
+            "scroll_pause_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 800
+            },
+            "stop_selector": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -2156,22 +2209,36 @@
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
-  ,
   "oneOf": [
     {
-      "required": ["start_urls"]
+      "required": [
+        "start_urls"
+      ]
     },
     {
-      "required": ["request"],
       "properties": {
         "request": {
-          "required": ["url"]
+          "type": "object",
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
-      }
+      },
+      "required": [
+        "request"
+      ]
     },
     {
-      "required": ["seed"]
+      "required": [
+        "seed"
+      ]
     }
-  ]
+  ],
+  "additionalProperties": false
 }

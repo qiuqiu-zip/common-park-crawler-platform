@@ -367,7 +367,29 @@ def create_app(data_dir: str | Path = "data", fetcher=None, playwright_fetcher=N
                 task = store.load_task(task_id)
             except FileNotFoundError as exc:
                 raise NotFoundApiError("Task not found") from exc
-            return {"task_id": task_id, "task": task.to_dict(), "records_count": len(store.read_records(task_id, strict=False))}
+            task_data = task.to_dict()
+            return {
+                "target_type": "task",
+                "target_id": task_id,
+                "task_id": task_id,
+                "spider_id": task.spider_id,
+                "status": task_data.get("status"),
+                "created_at": task_data.get("created_at") or task_data.get("started_at"),
+                "finished_at": task_data.get("finished_at") or task_data.get("completed_at"),
+                "total_requests": task_data.get("total_requests", 0),
+                "success_requests": task_data.get("success_requests", 0),
+                "failed_requests": task_data.get("failed_requests", 0),
+                "saved_records": task_data.get("saved_records", task_data.get("saved_count", 0)),
+                "record_quality_status": "unknown",
+                "warnings_count": len(task_data.get("warnings", [])),
+                "errors_count": 1 if task_data.get("error_message") else 0,
+                "warnings": task_data.get("warnings", []),
+                "warning_summary": task_data.get("warnings", []),
+                "error_summary": [task_data.get("error_message")] if task_data.get("error_message") else [],
+                "record_samples": store.read_records(task_id, strict=False)[:5],
+                "task": task_data,
+                "records_count": len(store.read_records(task_id, strict=False)),
+            }
 
     @app.get("/tasks/{task_id}/logs")
     def get_task_logs(task_id: str, level: str | None = None, limit: int | None = None, offset: int = 0):

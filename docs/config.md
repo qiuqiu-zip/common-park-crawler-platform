@@ -26,6 +26,9 @@ rate limit, and concurrency.
 Supported field types include `css`, `attribute`, `xpath`, `regex`,
 `json_path`, and `attr`. Fields can use `required`, `default`, `many`,
 `transforms`, `join_with`, `children`, `namespace`, and `override`.
+CSS selectors support descendant matching plus common attribute operators such
+as `[name=value]`, `[name*=value]`, `[name^=value]`, `[name$=value]`,
+`[name~=value]`, and `[name|=value]`.
 
 ## PaginationConfig
 
@@ -72,8 +75,10 @@ See `docs/crawl_policy.md` for defaults, warn/block behavior, and `plan`.
 
 ## Playwright
 
-`playwright` controls rendered-page behavior, including headless mode, pool size,
-wait settings, local rendered fixtures, and optional browser behavior.
+`playwright` controls rendered-page behavior, including headless mode, pool
+size, `wait_until`, optional `wait_for_selector`, fixed `post_load_wait_ms`,
+bounded `scroll_strategy`, local rendered fixtures, and optional browser
+behavior.
 
 ## Scheduler
 

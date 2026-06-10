@@ -236,19 +236,46 @@ class CrawlPolicyConfig:
 
 
 @dataclass(slots=True)
+class ScrollStrategyOptions:
+    enabled: bool = False
+    mode: str = "none"
+    max_scrolls: int = 3
+    scroll_pause_ms: int = 800
+    stop_selector: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> "ScrollStrategyOptions":
+        raw = dict(data or {})
+        allowed = {field.name for field in cls.__dataclass_fields__.values()}
+        return cls(**{key: value for key, value in raw.items() if key in allowed})
+
+
+@dataclass(slots=True)
 class PlaywrightOptions:
     enabled: bool = False
     browser_pool_size: int = 1
     headless: bool = True
     wait_until: str = "networkidle"
+    wait_for_selector: str | None = None
+    wait_for_selector_timeout_ms: int = 10000
+    post_load_wait_ms: int = 0
+    scroll_strategy: ScrollStrategyOptions = field(default_factory=ScrollStrategyOptions)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> "PlaywrightOptions":
         raw = dict(data or {})
         if "browser_pool_size" not in raw and "pool_size" in raw:
             raw["browser_pool_size"] = raw["pool_size"]
-        allowed = {field.name for field in cls.__dataclass_fields__.values()}
-        return cls(**{key: value for key, value in raw.items() if key in allowed})
+        return cls(
+            enabled=raw.get("enabled", False),
+            browser_pool_size=int(raw.get("browser_pool_size", 1)),
+            headless=raw.get("headless", True),
+            wait_until=raw.get("wait_until", "networkidle"),
+            wait_for_selector=raw.get("wait_for_selector"),
+            wait_for_selector_timeout_ms=int(raw.get("wait_for_selector_timeout_ms", 10000)),
+            post_load_wait_ms=int(raw.get("post_load_wait_ms", 0)),
+            scroll_strategy=ScrollStrategyOptions.from_dict(raw.get("scroll_strategy")),
+        )
 
 
 @dataclass(slots=True)

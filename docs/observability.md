@@ -106,7 +106,14 @@ This is local tracing only; no distributed tracing service is required.
 
 ## Run Reports
 
-Task reports are JSON files with task status, request counts, record counts, retry/session counters, warning and error summaries, result path, record samples, field non-empty rates, required missing stats, duplicate rate, transform error summary, `record_quality_status`, crawl policy summary, and `trace_id`.
+Task reports are JSON files with task status, request counts, record counts,
+retry/session counters, warning and error summaries, result path, record
+samples, field non-empty rates, required missing stats, field quality hints,
+duplicate rate, transform error summary, `record_quality_status`, crawl policy
+summary, and `trace_id`.
+
+Field quality status may be `unknown` when a task succeeded technically but no
+records were extracted, so completeness could not be evaluated yet.
 
 Worker job reports include job status, worker id, task id, attempt, duration, error, summary, and `trace_id`.
 
