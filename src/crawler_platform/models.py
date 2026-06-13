@@ -79,6 +79,49 @@ class FieldRule:
 
 
 @dataclass(slots=True)
+class ScrollStrategyOverrideOptions:
+    enabled: bool | None = None
+    mode: str | None = None
+    max_scrolls: int | None = None
+    scroll_pause_ms: int | None = None
+    stop_selector: str | None = None
+    _raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> "ScrollStrategyOverrideOptions":
+        raw = dict(data or {})
+        values = {key: raw[key] for key in ("enabled", "mode", "max_scrolls", "scroll_pause_ms", "stop_selector") if key in raw}
+        return cls(**values, _raw=values)
+
+    def has(self, name: str) -> bool:
+        return name in self._raw
+
+
+@dataclass(slots=True)
+class PlaywrightOverrideOptions:
+    wait_until: str | None = None
+    wait_for_selector: str | None = None
+    wait_for_selector_timeout_ms: int | None = None
+    post_load_wait_ms: int | None = None
+    scroll_strategy: ScrollStrategyOverrideOptions | None = None
+    _raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> "PlaywrightOverrideOptions":
+        raw = dict(data or {})
+        values = {key: raw[key] for key in ("wait_until", "wait_for_selector", "wait_for_selector_timeout_ms", "post_load_wait_ms") if key in raw}
+        scroll_raw = raw.get("scroll_strategy") if "scroll_strategy" in raw else None
+        return cls(
+            **values,
+            scroll_strategy=ScrollStrategyOverrideOptions.from_dict(scroll_raw) if "scroll_strategy" in raw else None,
+            _raw={key: raw[key] for key in raw if key in {"wait_until", "wait_for_selector", "wait_for_selector_timeout_ms", "post_load_wait_ms", "scroll_strategy"}},
+        )
+
+    def has(self, name: str) -> bool:
+        return name in self._raw
+
+
+@dataclass(slots=True)
 class RequestOptions:
     method: str = "GET"
     url: str | None = None
@@ -96,12 +139,30 @@ class RequestOptions:
     response_type: str | None = None
     follow_redirects: bool = True
     fail_fast: bool = False
+    playwright: PlaywrightOverrideOptions | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> "RequestOptions":
         raw = data or {}
-        allowed = {field.name for field in cls.__dataclass_fields__.values()}
-        return cls(**{key: value for key, value in raw.items() if key in allowed})
+        return cls(
+            method=raw.get("method", "GET"),
+            url=raw.get("url"),
+            params=dict(raw.get("params", {})),
+            headers={str(key): str(value) for key, value in dict(raw.get("headers", {})).items()},
+            cookies={str(key): str(value) for key, value in dict(raw.get("cookies", {})).items()},
+            user_agent=raw.get("user_agent"),
+            body=raw.get("body"),
+            json=raw.get("json"),
+            delay_seconds=float(raw.get("delay_seconds", 0)),
+            proxy=raw.get("proxy"),
+            timeout_seconds=float(raw.get("timeout_seconds", 20)),
+            max_retries=int(raw.get("max_retries", 2)),
+            encoding=raw.get("encoding"),
+            response_type=raw.get("response_type"),
+            follow_redirects=bool(raw.get("follow_redirects", True)),
+            fail_fast=bool(raw.get("fail_fast", False)),
+            playwright=PlaywrightOverrideOptions.from_dict(raw.get("playwright")) if "playwright" in raw else None,
+        )
 
 
 @dataclass(slots=True)
@@ -155,12 +216,26 @@ class PaginationOptions:
     urls: list[str] = field(default_factory=list)
     max_pages: int = 1
     max_records: int | None = None
+    request: RequestOptions = field(default_factory=RequestOptions)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> "PaginationOptions":
         raw = data or {}
-        allowed = {field.name for field in cls.__dataclass_fields__.values()}
-        return cls(**{key: value for key, value in raw.items() if key in allowed})
+        return cls(
+            type=raw.get("type", "none"),
+            next_selector=raw.get("next_selector"),
+            next_attribute=raw.get("next_attribute", "href"),
+            next_json_path=raw.get("next_json_path"),
+            page_param=raw.get("page_param"),
+            offset_param=raw.get("offset_param"),
+            page_size_param=raw.get("page_size_param"),
+            page_size=raw.get("page_size"),
+            cursor_json_path=raw.get("cursor_json_path"),
+            urls=list(raw.get("urls", [])),
+            max_pages=int(raw.get("max_pages", 1)),
+            max_records=raw.get("max_records"),
+            request=RequestOptions.from_dict(raw.get("request")),
+        )
 
 
 DEFAULT_TRACKING_PARAMS = [
@@ -276,6 +351,120 @@ class PlaywrightOptions:
             post_load_wait_ms=int(raw.get("post_load_wait_ms", 0)),
             scroll_strategy=ScrollStrategyOptions.from_dict(raw.get("scroll_strategy")),
         )
+
+
+def _scroll_strategy_options_to_dict(options: ScrollStrategyOptions) -> dict[str, Any]:
+    return {
+        "enabled": options.enabled,
+        "mode": options.mode,
+        "max_scrolls": options.max_scrolls,
+        "scroll_pause_ms": options.scroll_pause_ms,
+        "stop_selector": options.stop_selector,
+    }
+
+
+def _scroll_strategy_override_to_dict(options: ScrollStrategyOverrideOptions | None) -> dict[str, Any] | None:
+    if options is None:
+        return None
+    data: dict[str, Any] = {}
+    if options.has("enabled"):
+        data["enabled"] = options.enabled
+    if options.has("mode"):
+        data["mode"] = options.mode
+    if options.has("max_scrolls"):
+        data["max_scrolls"] = options.max_scrolls
+    if options.has("scroll_pause_ms"):
+        data["scroll_pause_ms"] = options.scroll_pause_ms
+    if options.has("stop_selector"):
+        data["stop_selector"] = options.stop_selector
+    return data
+
+
+def _playwright_options_to_dict(options: PlaywrightOptions) -> dict[str, Any]:
+    return {
+        "enabled": options.enabled,
+        "browser_pool_size": options.browser_pool_size,
+        "headless": options.headless,
+        "wait_until": options.wait_until,
+        "wait_for_selector": options.wait_for_selector,
+        "wait_for_selector_timeout_ms": options.wait_for_selector_timeout_ms,
+        "post_load_wait_ms": options.post_load_wait_ms,
+        "scroll_strategy": _scroll_strategy_options_to_dict(options.scroll_strategy),
+    }
+
+
+def _playwright_override_to_dict(options: PlaywrightOverrideOptions | None) -> dict[str, Any] | None:
+    if options is None:
+        return None
+    data: dict[str, Any] = {}
+    if options.has("wait_until"):
+        data["wait_until"] = options.wait_until
+    if options.has("wait_for_selector"):
+        data["wait_for_selector"] = options.wait_for_selector
+    if options.has("wait_for_selector_timeout_ms"):
+        data["wait_for_selector_timeout_ms"] = options.wait_for_selector_timeout_ms
+    if options.has("post_load_wait_ms"):
+        data["post_load_wait_ms"] = options.post_load_wait_ms
+    if options.has("scroll_strategy"):
+        data["scroll_strategy"] = _scroll_strategy_override_to_dict(options.scroll_strategy)
+    return data
+
+
+def _request_options_to_dict(options: RequestOptions) -> dict[str, Any]:
+    return {
+        "method": options.method,
+        "url": options.url,
+        "params": dict(options.params),
+        "headers": dict(options.headers),
+        "cookies": dict(options.cookies),
+        "user_agent": options.user_agent,
+        "body": options.body,
+        "json": options.json,
+        "delay_seconds": options.delay_seconds,
+        "proxy": options.proxy,
+        "timeout_seconds": options.timeout_seconds,
+        "max_retries": options.max_retries,
+        "encoding": options.encoding,
+        "response_type": options.response_type,
+        "follow_redirects": options.follow_redirects,
+        "fail_fast": options.fail_fast,
+        "playwright": _playwright_override_to_dict(options.playwright),
+    }
+
+
+def _detail_options_to_dict(detail: DetailOptions) -> dict[str, Any]:
+    return {
+        "enabled": detail.enabled,
+        "url_field": detail.url_field,
+        "url_selector": detail.url_selector,
+        "url_attr": detail.url_attr,
+        "link_selector": detail.link_selector,
+        "link_attribute": detail.link_attribute,
+        "request": _request_options_to_dict(detail.request),
+        "fields": [asdict(item) for item in detail.fields],
+        "merge_strategy": detail.merge_strategy,
+        "namespace": detail.namespace,
+        "max_depth": detail.max_depth,
+        "details": [_detail_options_to_dict(item) for item in detail.details],
+    }
+
+
+def _pagination_options_to_dict(options: PaginationOptions) -> dict[str, Any]:
+    return {
+        "type": options.type,
+        "next_selector": options.next_selector,
+        "next_attribute": options.next_attribute,
+        "next_json_path": options.next_json_path,
+        "page_param": options.page_param,
+        "offset_param": options.offset_param,
+        "page_size_param": options.page_size_param,
+        "page_size": options.page_size,
+        "cursor_json_path": options.cursor_json_path,
+        "urls": list(options.urls),
+        "max_pages": options.max_pages,
+        "max_records": options.max_records,
+        "request": _request_options_to_dict(options.request),
+    }
 
 
 @dataclass(slots=True)
@@ -601,23 +790,10 @@ class SpiderConfig:
             "items_json_path": self.items_json_path,
             "fields": [asdict(item) for item in self.fields],
             "unique_fields": self.unique_fields,
-            "request": asdict(self.request),
-            "pagination": asdict(self.pagination),
-            "detail": {
-                "enabled": self.detail.enabled,
-                "url_field": self.detail.url_field,
-                "url_selector": self.detail.url_selector,
-                "url_attr": self.detail.url_attr,
-                "link_selector": self.detail.link_selector,
-                "link_attribute": self.detail.link_attribute,
-                "request": asdict(self.detail.request),
-                "fields": [asdict(item) for item in self.detail.fields],
-                "merge_strategy": self.detail.merge_strategy,
-                "namespace": self.detail.namespace,
-                "max_depth": self.detail.max_depth,
-                "details": [asdict(item) for item in self.detail.details],
-            },
-            "playwright": asdict(self.playwright),
+            "request": _request_options_to_dict(self.request),
+            "pagination": _pagination_options_to_dict(self.pagination),
+            "detail": _detail_options_to_dict(self.detail),
+            "playwright": _playwright_options_to_dict(self.playwright),
             "scheduler": asdict(self.scheduler),
             "dedup": self.dedup,
             "watermark": self.watermark,

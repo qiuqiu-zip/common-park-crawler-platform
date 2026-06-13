@@ -23,6 +23,7 @@ from .extractor import (
 from .html_query import HTMLDocument, Node
 from .http_client import FetchError, Fetcher, HttpFetcher, HttpRequest, HttpResponse, HttpStatusError, RequestContext, build_http_request, parse_response
 from .models import FieldRule, SpiderConfig
+from .playwright_runner import resolve_playwright_options
 from .session import redact_sensitive
 from .storage import FileStore
 from .url_seed import collect_request_urls
@@ -351,11 +352,22 @@ def save_debug_artifact(
 
 def _build_dry_run_request(spider: SpiderConfig, url: str, response_type: str, dry_run_id: str) -> HttpRequest:
     options = replace(spider.request, params=dict(spider.request.params))
+    effective_playwright = None
+    strategy_source = None
+    if spider.type == "playwright" or spider.playwright.enabled:
+        effective_playwright, strategy_source = resolve_playwright_options(
+            spider.playwright,
+            options.playwright,
+            page_role="debug",
+            override_source="request.playwright.debug" if options.playwright is not None else "spider.playwright",
+        )
     return build_http_request(
         url,
         options,
         response_type=response_type,
-        context=RequestContext(spider_id=spider.id, task_id=dry_run_id, start_url=url, response_type=response_type),
+        context=RequestContext(spider_id=spider.id, task_id=dry_run_id, start_url=url, response_type=response_type, page_role="debug"),
+        playwright_options=effective_playwright,
+        playwright_strategy_source=strategy_source,
     )
 
 

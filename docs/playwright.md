@@ -47,6 +47,44 @@ supports:
 controls exist for rendered pages that are technically loaded but still need
 DOM readiness or lazy-load triggers before extraction.
 
+## Per-Page Overrides
+
+Rendered spiders can keep one global baseline under `playwright` and override
+readiness controls per page role:
+
+```json
+{
+  "request": {
+    "playwright": {
+      "wait_for_selector": ".feed-card"
+    }
+  },
+  "pagination": {
+    "request": {
+      "playwright": {
+        "wait_for_selector": ".page-ready",
+        "scroll_strategy": {
+          "enabled": true,
+          "mode": "bottom",
+          "stop_selector": ".page-ready"
+        }
+      }
+    }
+  },
+  "detail": {
+    "request": {
+      "playwright": {
+        "wait_for_selector": null
+      }
+    }
+  }
+}
+```
+
+Use `null` to explicitly clear an inherited selector. This is the safe way to
+avoid list-page waits such as `.video-card` leaking into detail pages that only
+have `h1` or other detail-only markup.
+
 ## Browser Pool
 
 `BrowserPool` owns up to `browser_pool_size` browser instances. It tracks idle
@@ -59,6 +97,9 @@ The engine routes rendered requests through `PlaywrightFetcher` for spiders with
 and detail pages all use the same rendered fetch path. After the initial
 navigation, the rendered fetch path may wait for a selector, apply a fixed
 post-load delay, and perform bounded scrolling before `page.content()` is read.
+Each rendered response now records readiness metadata such as `page_role`,
+`strategy_source`, `wait_for_selector_used`, `wait_for_selector_matched`,
+`wait_for_selector_elapsed_ms`, `scroll_count`, and `final_content_length`.
 
 Feature 13 adds optional session `storage_state` loading before render and
 context `storage_state` saving after render. Tests can use
@@ -75,6 +116,8 @@ dependency and installed browser binaries.
 
 ```powershell
 python -m crawler_platform.cli run examples/playwright_local_fixture.json --data-dir test-output/feature08-playwright-local
+python -m crawler_platform.cli validate examples/playwright_per_page_wait_local.json
+python -m crawler_platform.cli validate examples/playwright_space_style_scroll_local.json
 ```
 
 ## FastAPI

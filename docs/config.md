@@ -33,13 +33,19 @@ as `[name=value]`, `[name*=value]`, `[name^=value]`, `[name$=value]`,
 ## PaginationConfig
 
 Pagination supports page numbers, offsets, explicit URL lists, next-link
-selectors, cursors, `max_pages`, and `max_records`.
+selectors, cursors, `max_pages`, and `max_records`. Rendered spiders may also
+set `pagination.request.playwright` to override readiness controls for later
+pages without changing the start-page baseline.
 
 ## DetailConfig
 
 `detail` can follow a URL stored in a list record or discovered through a
-selector, extract detail fields, and merge with `override`, `namespace`, or
-`keep_list`.
+ selector, extract detail fields, and merge with `override`, `namespace`, or
+ `keep_list`.
+
+For rendered spiders, `detail.request.playwright` can override or clear list
+page waits. A common pattern is `"wait_for_selector": null` on detail pages when
+the global list-page selector does not exist there.
 
 ## DedupConfig
 
@@ -78,7 +84,10 @@ See `docs/crawl_policy.md` for defaults, warn/block behavior, and `plan`.
 `playwright` controls rendered-page behavior, including headless mode, pool
 size, `wait_until`, optional `wait_for_selector`, fixed `post_load_wait_ms`,
 bounded `scroll_strategy`, local rendered fixtures, and optional browser
-behavior.
+behavior. Request-level readiness overrides live under `request.playwright`,
+`pagination.request.playwright`, and `detail.request.playwright`. These override
+only render-readiness controls and are resolved into page-role metadata during
+fetch.
 
 ## Scheduler
 

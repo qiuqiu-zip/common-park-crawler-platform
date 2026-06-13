@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import threading
 import time
 import urllib.parse
@@ -7,15 +8,87 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from .http_client import FetchError, FetchResponse, HttpRequest, HttpResponse
-from .models import PlaywrightOptions, RequestOptions
+from .models import (
+    PlaywrightOptions,
+    PlaywrightOverrideOptions,
+    RequestOptions,
+    ScrollStrategyOptions,
+    ScrollStrategyOverrideOptions,
+)
 
 
 class PlaywrightUnavailableError(FetchError):
     def __init__(self, message: str = "Playwright is not installed; install the playwright extra and browsers.") -> None:
         super().__init__(message, "playwright_unavailable")
+
+
+def clone_playwright_options(options: PlaywrightOptions) -> PlaywrightOptions:
+    return PlaywrightOptions(
+        enabled=options.enabled,
+        browser_pool_size=options.browser_pool_size,
+        headless=options.headless,
+        wait_until=options.wait_until,
+        wait_for_selector=options.wait_for_selector,
+        wait_for_selector_timeout_ms=options.wait_for_selector_timeout_ms,
+        post_load_wait_ms=options.post_load_wait_ms,
+        scroll_strategy=ScrollStrategyOptions(
+            enabled=options.scroll_strategy.enabled,
+            mode=options.scroll_strategy.mode,
+            max_scrolls=options.scroll_strategy.max_scrolls,
+            scroll_pause_ms=options.scroll_strategy.scroll_pause_ms,
+            stop_selector=options.scroll_strategy.stop_selector,
+        ),
+    )
+
+
+def resolve_playwright_options(
+    global_options: PlaywrightOptions,
+    request_override: PlaywrightOverrideOptions | None,
+    *,
+    page_role: str,
+    override_source: str | None = None,
+) -> tuple[PlaywrightOptions, str]:
+    resolved = clone_playwright_options(global_options)
+    if request_override is None:
+        return resolved, "spider.playwright"
+    if request_override.has("wait_until"):
+        resolved.wait_until = request_override.wait_until or resolved.wait_until
+    if request_override.has("wait_for_selector"):
+        resolved.wait_for_selector = request_override.wait_for_selector
+    if request_override.has("wait_for_selector_timeout_ms") and request_override.wait_for_selector_timeout_ms is not None:
+        resolved.wait_for_selector_timeout_ms = int(request_override.wait_for_selector_timeout_ms)
+    if request_override.has("post_load_wait_ms") and request_override.post_load_wait_ms is not None:
+        resolved.post_load_wait_ms = int(request_override.post_load_wait_ms)
+    if request_override.has("scroll_strategy") and request_override.scroll_strategy is not None:
+        resolved.scroll_strategy = _merge_scroll_strategy_options(resolved.scroll_strategy, request_override.scroll_strategy)
+    return resolved, override_source or f"{page_role}.request.playwright"
+
+
+def _merge_scroll_strategy_options(
+    base: ScrollStrategyOptions,
+    override: ScrollStrategyOverrideOptions,
+) -> ScrollStrategyOptions:
+    resolved = ScrollStrategyOptions(
+        enabled=base.enabled,
+        mode=base.mode,
+        max_scrolls=base.max_scrolls,
+        scroll_pause_ms=base.scroll_pause_ms,
+        stop_selector=base.stop_selector,
+    )
+    if override.has("enabled") and override.enabled is not None:
+        resolved.enabled = bool(override.enabled)
+    if override.has("mode"):
+        resolved.mode = override.mode or resolved.mode
+    if override.has("max_scrolls") and override.max_scrolls is not None:
+        resolved.max_scrolls = int(override.max_scrolls)
+    if override.has("scroll_pause_ms") and override.scroll_pause_ms is not None:
+        resolved.scroll_pause_ms = int(override.scroll_pause_ms)
+    if override.has("stop_selector"):
+        resolved.stop_selector = override.stop_selector
+    return resolved
 
 
 class RenderBackend(Protocol):
@@ -66,7 +139,7 @@ class BrowserPool:
     def fetch(self, request: HttpRequest) -> FetchResponse:
         slot = self._acquire()
         try:
-            response = self.backend.render(slot.browser, request, self.options)
+            response = self.backend.render(slot.browser, request, request.playwright_options or self.options)
             with self._lock:
                 self._requests += 1
             return response
@@ -171,8 +244,15 @@ class PlaywrightRenderBackend:
             page = context.new_page()
             try:
                 response = page.goto(request.url, wait_until=options.wait_until, timeout=int(request.timeout * 1000))
-                readiness = _apply_page_readiness_controls(page, request.url, options)
+                readiness = _apply_page_readiness_controls(
+                    page,
+                    request.url,
+                    options,
+                    page_role=request.context.page_role if request.context else "start",
+                    strategy_source=request.playwright_strategy_source or "spider.playwright",
+                )
                 body = page.content()
+                readiness["final_content_length"] = len(body)
                 final_url = page.url
                 status_code = response.status if response is not None else 200
                 storage_state = context.storage_state()
@@ -235,6 +315,8 @@ def _request_from_options(url: str, request: RequestOptions) -> HttpRequest:
         encoding=request.encoding,
         response_type=request.response_type or "html",
         storage_state=None,
+        playwright_options=None,
+        playwright_strategy_source=None,
     )
 
 
@@ -272,10 +354,23 @@ def _local_path(url: str) -> Path:
     return Path(url)
 
 
-def _apply_page_readiness_controls(page, url: str, options: PlaywrightOptions) -> dict[str, object]:
+def _apply_page_readiness_controls(
+    page,
+    url: str,
+    options: PlaywrightOptions,
+    *,
+    page_role: str = "start",
+    strategy_source: str = "spider.playwright",
+) -> dict[str, object]:
     readiness: dict[str, object] = {
+        "page_role": page_role,
+        "strategy_source": strategy_source,
         "wait_until": options.wait_until,
         "wait_for_selector": options.wait_for_selector,
+        "wait_for_selector_used": options.wait_for_selector,
+        "wait_for_selector_timeout_ms": options.wait_for_selector_timeout_ms,
+        "wait_for_selector_matched": None,
+        "wait_for_selector_elapsed_ms": 0,
         "post_load_wait_ms": options.post_load_wait_ms,
         "scroll_strategy": {
             "enabled": options.scroll_strategy.enabled,
@@ -284,8 +379,18 @@ def _apply_page_readiness_controls(page, url: str, options: PlaywrightOptions) -
             "scroll_pause_ms": options.scroll_strategy.scroll_pause_ms,
             "stop_selector": options.scroll_strategy.stop_selector,
         },
+        "scroll_strategy_used": {
+            "enabled": options.scroll_strategy.enabled,
+            "mode": options.scroll_strategy.mode,
+            "max_scrolls": options.scroll_strategy.max_scrolls,
+            "scroll_pause_ms": options.scroll_strategy.scroll_pause_ms,
+            "stop_selector": options.scroll_strategy.stop_selector,
+        },
+        "scroll_count": 0,
+        "scrolls_performed": 0,
     }
     if options.wait_for_selector:
+        wait_started = time.perf_counter()
         try:
             page.wait_for_selector(
                 options.wait_for_selector,
@@ -293,15 +398,23 @@ def _apply_page_readiness_controls(page, url: str, options: PlaywrightOptions) -
                 timeout=int(options.wait_for_selector_timeout_ms),
             )
             readiness["wait_for_selector_matched"] = True
+            readiness["wait_for_selector_elapsed_ms"] = round((time.perf_counter() - wait_started) * 1000, 3)
         except Exception as exc:
+            elapsed_ms = round((time.perf_counter() - wait_started) * 1000, 3)
             raise FetchError(
-                f"Playwright wait_for_selector timed out or failed for {url}: {options.wait_for_selector}",
+                (
+                    f"Playwright wait_for_selector failed for {page_role} page {url}: "
+                    f"selector={options.wait_for_selector!r} timeout_ms={int(options.wait_for_selector_timeout_ms)} "
+                    f"elapsed_ms={elapsed_ms}"
+                ),
                 "playwright_render",
                 url=url,
             ) from exc
     if options.post_load_wait_ms > 0:
         page.wait_for_timeout(int(options.post_load_wait_ms))
-    readiness["scrolls_performed"] = _apply_scroll_strategy(page, url, options)
+    scroll_count = _apply_scroll_strategy(page, url, options)
+    readiness["scroll_count"] = scroll_count
+    readiness["scrolls_performed"] = scroll_count
     return readiness
 
 
@@ -380,13 +493,15 @@ class FakeRenderBackend:
         self.rendered_urls: list[str] = []
         self.storage_states: list[dict | None] = []
         self.launch_options: list[PlaywrightOptions] = []
+        self.render_options: list[PlaywrightOptions] = []
+        self.render_calls: list[dict[str, Any]] = []
         self._active = 0
         self.max_active = 0
         self._lock = threading.Lock()
 
     def open_browser(self, options: PlaywrightOptions):
         self.opened += 1
-        self.launch_options.append(options)
+        self.launch_options.append(clone_playwright_options(options))
         return {"browser": self.opened}
 
     def render(self, browser, request: HttpRequest, options: PlaywrightOptions) -> FetchResponse:
@@ -398,6 +513,16 @@ class FakeRenderBackend:
                 time.sleep(self.delay_seconds)
             self.rendered_urls.append(request.url)
             self.storage_states.append(request.storage_state)
+            effective_options = request.playwright_options or options
+            self.render_options.append(clone_playwright_options(effective_options))
+            self.render_calls.append(
+                {
+                    "url": request.url,
+                    "page_role": request.context.page_role if request.context else "start",
+                    "strategy_source": request.playwright_strategy_source or "spider.playwright",
+                    "playwright_options": clone_playwright_options(effective_options),
+                }
+            )
             value = self.responses.get(request.url)
             if isinstance(value, Exception):
                 raise value
@@ -405,9 +530,11 @@ class FakeRenderBackend:
                 if self.storage_state_after_render is not None and "storage_state" not in value.metadata:
                     value.metadata["storage_state"] = self.storage_state_after_render
                 return value
+            if isinstance(value, dict):
+                return self._render_scenario(request, effective_options, value)
             if value is None:
                 raise FetchError(f"No fake rendered response for {request.url}", "network", url=request.url)
-            metadata = {"storage_state": self.storage_state_after_render} if self.storage_state_after_render is not None else {}
+            metadata = self._static_render_metadata(request, effective_options, str(value))
             return HttpResponse(url=request.url, final_url=request.url, status_code=200, body=value, content_type="text/html", metadata=metadata)
         finally:
             with self._lock:
@@ -418,3 +545,114 @@ class FakeRenderBackend:
 
     def close(self) -> None:
         pass
+
+    def _static_render_metadata(self, request: HttpRequest, options: PlaywrightOptions, body: str) -> dict[str, Any]:
+        readiness = {
+            "page_role": request.context.page_role if request.context else "start",
+            "strategy_source": request.playwright_strategy_source or "spider.playwright",
+            "wait_until": options.wait_until,
+            "wait_for_selector": options.wait_for_selector,
+            "wait_for_selector_used": options.wait_for_selector,
+            "wait_for_selector_timeout_ms": options.wait_for_selector_timeout_ms,
+            "wait_for_selector_matched": None,
+            "wait_for_selector_elapsed_ms": 0,
+            "post_load_wait_ms": options.post_load_wait_ms,
+            "scroll_strategy": {
+                "enabled": options.scroll_strategy.enabled,
+                "mode": options.scroll_strategy.mode,
+                "max_scrolls": options.scroll_strategy.max_scrolls,
+                "scroll_pause_ms": options.scroll_strategy.scroll_pause_ms,
+                "stop_selector": options.scroll_strategy.stop_selector,
+            },
+            "scroll_strategy_used": {
+                "enabled": options.scroll_strategy.enabled,
+                "mode": options.scroll_strategy.mode,
+                "max_scrolls": options.scroll_strategy.max_scrolls,
+                "scroll_pause_ms": options.scroll_strategy.scroll_pause_ms,
+                "stop_selector": options.scroll_strategy.stop_selector,
+            },
+            "scroll_count": 0,
+            "scrolls_performed": 0,
+            "final_content_length": len(body),
+        }
+        metadata = {"playwright_readiness": readiness}
+        if self.storage_state_after_render is not None:
+            metadata["storage_state"] = self.storage_state_after_render
+        return metadata
+
+    def _render_scenario(self, request: HttpRequest, options: PlaywrightOptions, scenario: dict[str, Any]) -> FetchResponse:
+        page = _FakeScenarioPage(request.url, scenario)
+        readiness = _apply_page_readiness_controls(
+            page,
+            request.url,
+            options,
+            page_role=request.context.page_role if request.context else "start",
+            strategy_source=request.playwright_strategy_source or "spider.playwright",
+        )
+        body = page.content()
+        readiness["final_content_length"] = len(body)
+        metadata = {"playwright_readiness": readiness}
+        if self.storage_state_after_render is not None:
+            metadata["storage_state"] = self.storage_state_after_render
+        if isinstance(scenario.get("metadata"), dict):
+            metadata.update(copy.deepcopy(scenario["metadata"]))
+        return HttpResponse(
+            url=request.url,
+            final_url=str(scenario.get("final_url") or request.url),
+            status_code=int(scenario.get("status_code", 200)),
+            body=body,
+            content_type=str(scenario.get("content_type", "text/html")),
+            metadata=metadata,
+        )
+
+
+class _FakeScenarioLocator:
+    def __init__(self, page: "_FakeScenarioPage", selector: str) -> None:
+        self.page = page
+        self.selector = selector
+
+    def count(self) -> int:
+        return self.page.selector_count(self.selector)
+
+
+class _FakeScenarioPage:
+    def __init__(self, url: str, scenario: dict[str, Any]) -> None:
+        self.url = str(scenario.get("final_url") or url)
+        self._scenario = scenario
+        self._scrolls = 0
+
+    def wait_for_selector(self, selector, *, state, timeout):
+        timeout_selectors = set(self._scenario.get("wait_timeout_selectors", []))
+        if self._scenario.get("fail_wait_selector") or selector in timeout_selectors or self.selector_count(selector) <= 0:
+            raise RuntimeError(f"selector not ready: {selector}")
+
+    def wait_for_timeout(self, timeout_ms):
+        return None
+
+    def locator(self, selector):
+        return _FakeScenarioLocator(self, selector)
+
+    def selector_count(self, selector: str) -> int:
+        base_counts = self._scenario.get("selector_counts", {})
+        dynamic_counts = self._scenario.get("selector_counts_after_scroll", {})
+        required_scrolls = int(self._scenario.get("required_scrolls", 0))
+        if self._scrolls >= required_scrolls and selector in dynamic_counts:
+            return int(dynamic_counts.get(selector, 0))
+        return int(base_counts.get(selector, 0))
+
+    def evaluate(self, script, mode):
+        self._scrolls += 1
+        viewport_height = int(self._scenario.get("viewport_height", 800))
+        scroll_top = viewport_height * self._scrolls if mode != "incremental" else max(int(viewport_height / 2), 200) * self._scrolls
+        scroll_height = int(self._scenario.get("scroll_height", max(viewport_height * 4, 3200)))
+        return {
+            "scroll_top": scroll_top,
+            "scroll_height": scroll_height,
+            "viewport_height": viewport_height,
+        }
+
+    def content(self) -> str:
+        required_scrolls = int(self._scenario.get("required_scrolls", 0))
+        if self._scrolls >= required_scrolls and "body_after_scroll" in self._scenario:
+            return str(self._scenario.get("body_after_scroll") or "")
+        return str(self._scenario.get("body") or "")

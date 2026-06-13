@@ -24,7 +24,7 @@ from .http_client import (
     parse_response,
 )
 from .lifecycle import CancellationRequested, LifecycleSignal
-from .models import DetailOptions, LifecycleEvent, SpiderConfig, TaskRecord, TaskStatus
+from .models import DetailOptions, LifecycleEvent, RequestOptions, SpiderConfig, TaskRecord, TaskStatus
 from .observability import (
     ensure_task_trace,
     log_event,
@@ -35,7 +35,7 @@ from .observability import (
     trace_event,
     trace_id_from_task,
 )
-from .playwright_runner import PlaywrightFetcher
+from .playwright_runner import PlaywrightFetcher, resolve_playwright_options
 from .request_governance import RequestPipeline, error_summary, normalized_error_type
 from .storage import FileStore
 from .url_seed import collect_request_urls
@@ -62,6 +62,7 @@ class PageRequestSpec:
     url: str
     params: dict[str, Any] = field(default_factory=dict)
     page_index: int = 1
+    page_role: str = "start"
 
 
 @dataclass(slots=True)
@@ -171,6 +172,7 @@ class CrawlerEngine:
                     str(next_url),
                     params=dict(checkpoint.get("next_params", {})),
                     page_index=int(checkpoint.get("next_page_index", checkpoint.get("current_page", 0) + 1) or 1),
+                    page_role=str(checkpoint.get("next_page_role") or "start"),
                 )
         else:
             task = TaskRecord(id=task_id or uuid.uuid4().hex, spider_id=spider.id)
@@ -204,7 +206,7 @@ class CrawlerEngine:
             self._check_lifecycle(task, "run_start")
             for start_index, start_url in enumerate(request_urls[resume_start_index:], start=resume_start_index):
                 self._check_lifecycle(task, "start_url")
-                next_spec: PageRequestSpec | None = resume_next_spec if start_index == resume_start_index and resume_next_spec else PageRequestSpec(start_url)
+                next_spec: PageRequestSpec | None = resume_next_spec if start_index == resume_start_index and resume_next_spec else PageRequestSpec(start_url, page_role="start")
                 resume_next_spec = None
                 while next_spec is not None and not self._record_limit_reached(spider, task):
                     self._check_lifecycle(task, "page")
@@ -345,7 +347,7 @@ class CrawlerEngine:
             return None
         if decision.normalized_url == spec.url:
             return spec
-        return PageRequestSpec(decision.normalized_url, params=dict(spec.params), page_index=spec.page_index)
+        return PageRequestSpec(decision.normalized_url, params=dict(spec.params), page_index=spec.page_index, page_role=spec.page_role)
 
     def _check_policy_url(self, spider: SpiderConfig, task: TaskRecord, url: str, *, depth: int, kind: str) -> CrawlPolicyDecision:
         policy = self._crawl_policy or CrawlPolicyEngine(spider, clock=self.clock)
@@ -380,12 +382,15 @@ class CrawlerEngine:
     def _fetch_and_parse(self, spider: SpiderConfig, task: TaskRecord, request_spec: PageRequestSpec) -> FetchResult:
         response_type = self._response_type(spider)
         request_id = uuid.uuid4().hex
-        options = replace(spider.request, params={**spider.request.params, **request_spec.params})
-        request = build_http_request(
+        options = self._request_options_for_page(spider, request_spec)
+        request = self._build_request(
+            spider,
+            task,
             request_spec.url,
             options,
             response_type=response_type,
-            context=RequestContext(spider_id=spider.id, task_id=task.id, start_url=request_spec.url, response_type=response_type),
+            page_role=request_spec.page_role,
+            override_source=self._playwright_override_source(request_spec.page_role, options),
         )
         self._observe_trace(spider, task, "request_built", request_id=request_id, url=request.url, metadata={"response_type": response_type})
         execution = self._execute_request(spider, task, request, response_type, request_id=request_id)
@@ -501,11 +506,14 @@ class CrawlerEngine:
         task.total_requests += 1
         response_type = detail.request.response_type or ("json" if spider.type == "api" else "html")
         request_id = uuid.uuid4().hex
-        request = build_http_request(
+        request = self._build_request(
+            spider,
+            task,
             url,
             detail.request,
             response_type=response_type,
-            context=RequestContext(spider_id=spider.id, task_id=task.id, start_url=url, response_type=response_type),
+            page_role="detail",
+            override_source=self._playwright_override_source("detail", detail.request),
         )
         try:
             self._check_lifecycle(task, "detail_fetch")
@@ -523,6 +531,63 @@ class CrawlerEngine:
             warning = _task_warning(exc, url)
             task.warnings.append(warning)
             return None
+
+    def _request_options_for_page(self, spider: SpiderConfig, request_spec: PageRequestSpec) -> RequestOptions:
+        options = replace(spider.request, params={**spider.request.params, **request_spec.params})
+        if request_spec.page_role != "pagination":
+            return options
+        return replace(
+            options,
+            playwright=spider.pagination.request.playwright
+            if spider.pagination.request.playwright is not None
+            else options.playwright,
+        )
+
+    def _build_request(
+        self,
+        spider: SpiderConfig,
+        task: TaskRecord,
+        url: str,
+        options: RequestOptions,
+        *,
+        response_type: str,
+        page_role: str,
+        override_source: str,
+    ) -> HttpRequest:
+        effective_playwright = None
+        strategy_source = None
+        if _uses_playwright(spider):
+            effective_playwright, strategy_source = resolve_playwright_options(
+                spider.playwright,
+                options.playwright,
+                page_role=page_role,
+                override_source=override_source,
+            )
+        return build_http_request(
+            url,
+            options,
+            response_type=response_type,
+            context=RequestContext(
+                spider_id=spider.id,
+                task_id=task.id,
+                start_url=url,
+                response_type=response_type,
+                page_role=page_role,
+            ),
+            playwright_options=effective_playwright,
+            playwright_strategy_source=strategy_source,
+        )
+
+    def _playwright_override_source(self, page_role: str, options: RequestOptions) -> str:
+        if options.playwright is None:
+            return "spider.playwright"
+        if page_role == "pagination":
+            return "pagination.request.playwright"
+        if page_role == "detail":
+            return "detail.request.playwright"
+        if page_role == "debug":
+            return "request.playwright.debug"
+        return "request.playwright"
 
     def _records_within_limit(self, spider: SpiderConfig, task: TaskRecord, records: list[dict]) -> list[dict]:
         if spider.pagination.max_records is None:
@@ -552,7 +617,7 @@ class CrawlerEngine:
 
         explicit_index = page_index - 1
         if explicit_index < len(pagination.urls):
-            return PageRequestSpec(pagination.urls[explicit_index], page_index=page_index + 1)
+            return PageRequestSpec(pagination.urls[explicit_index], page_index=page_index + 1, page_role="pagination")
 
         if extracted_count == 0:
             return None
@@ -565,6 +630,7 @@ class CrawlerEngine:
                 _without_query_params(fetch_result.request.url, {param}),
                 params={param: current_page + 1},
                 page_index=page_index + 1,
+                page_role="pagination",
             )
         if pagination.type == "offset":
             param = pagination.offset_param or "offset"
@@ -585,14 +651,15 @@ class CrawlerEngine:
                 _without_query_params(fetch_result.request.url, remove_params),
                 params=params,
                 page_index=page_index + 1,
+                page_role="pagination",
             )
         if pagination.type == "next_button":
             next_url = _next_html_url(fetch_result, pagination.next_selector, pagination.next_attribute)
-            return PageRequestSpec(next_url, page_index=page_index + 1) if next_url else None
+            return PageRequestSpec(next_url, page_index=page_index + 1, page_role="pagination") if next_url else None
         if pagination.type == "cursor":
             next_url = _next_json_url(fetch_result, pagination.next_json_path)
             if next_url:
-                return PageRequestSpec(next_url, page_index=page_index + 1)
+                return PageRequestSpec(next_url, page_index=page_index + 1, page_role="pagination")
             cursor = _cursor_value(fetch_result, pagination.cursor_json_path)
             if cursor is None or cursor == "":
                 return None
@@ -601,6 +668,7 @@ class CrawlerEngine:
                 _without_query_params(fetch_result.request.url, {param}),
                 params={param: cursor},
                 page_index=page_index + 1,
+                page_role="pagination",
             )
         return None
 
@@ -722,7 +790,17 @@ class CrawlerEngine:
                 task.skipped_records += 1
                 return "skip"
             if incremental.missing_key_policy == "warn":
-                task.warnings.append(message)
+                task.warnings.append(
+                    {
+                        "type": "dedup_missing_key",
+                        "error_type": "field_quality",
+                        "message": message,
+                        "spider_id": spider.id,
+                        "source_url": source_url,
+                        "missing_keys": list(missing),
+                        "dedup_keys": list(incremental.dedup_keys),
+                    }
+                )
         unique_hash = build_unique_hash(values, hash_method=incremental.hash_method)
         is_duplicate = self.store.has_hash(incremental.dedup_dataset, unique_hash, scope=incremental.hash_scope)
         if is_duplicate:
@@ -800,6 +878,7 @@ class CrawlerEngine:
             "next_url": next_spec.url if next_spec else None,
             "next_params": next_spec.params if next_spec else {},
             "next_page_index": next_spec.page_index if next_spec else None,
+            "next_page_role": next_spec.page_role if next_spec else None,
             "offset": _checkpoint_offset(spider, next_spec),
             "cursor": _checkpoint_cursor(spider, next_spec),
             "visited_urls": [],

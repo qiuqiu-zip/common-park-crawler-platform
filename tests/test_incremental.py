@@ -220,6 +220,9 @@ def test_missing_key_policy_warn_saves_record(workspace_tmp_path):
     assert task.status == TaskStatus.SUCCESS
     assert task.saved_records == 1
     assert task.warnings
+    assert task.warnings[0]["type"] == "dedup_missing_key"
+    assert task.warnings[0]["error_type"] == "field_quality"
+    assert task.warnings[0]["missing_keys"] == ["missing"]
 
 
 def test_missing_key_policy_skip_skips_record(workspace_tmp_path):

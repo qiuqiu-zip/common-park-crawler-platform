@@ -66,6 +66,12 @@ response headers, error type, message, response text prefix, and file paths for
 captured response bodies. Sensitive request and cookie-like fields are redacted.
 Screenshots are reserved for rendered-page fetchers.
 
+For rendered pages, also inspect `response.metadata.playwright_readiness` in
+task reports or debug output. It records which page role ran (`start`,
+`pagination`, `detail`, `debug`), where the effective strategy came from,
+whether `wait_for_selector` matched, how long that wait took, how many scrolls
+ran, and the final DOM length collected by `page.content()`.
+
 ## Transforms
 
 The extractor supports the original transforms plus these debugging-oriented
@@ -90,4 +96,6 @@ python -m crawler_platform.cli dry-run examples/debug_urljoin.json --data-dir te
 python -m crawler_platform.cli dry-run examples/debug_transforms.json --data-dir test-output/debug-transforms
 python -m crawler_platform.cli dry-run examples/debug_quality_report.json --data-dir test-output/debug-quality
 python -m crawler_platform.cli examples validate
+python -m crawler_platform.cli validate examples/playwright_per_page_wait_local.json
+python -m crawler_platform.cli validate examples/playwright_space_style_scroll_local.json
 ```

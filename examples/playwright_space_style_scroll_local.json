@@ -1,0 +1,39 @@
+{
+  "id": "playwright-space-style-scroll-local",
+  "name": "Playwright space-style scroll local demo",
+  "version": "1.0",
+  "type": "playwright",
+  "start_urls": ["examples/fixtures/playwright_space_style_loaded.html"],
+  "item_selector": ".video-card",
+  "unique_fields": ["title", "video_url"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "video_url",
+      "type": "attr",
+      "selector": "a[href*=\"/video/\"]",
+      "attribute": "href"
+    },
+    {
+      "name": "views",
+      "type": "css",
+      "selector": ".meta"
+    }
+  ],
+  "playwright": {
+    "enabled": true,
+    "wait_until": "domcontentloaded",
+    "post_load_wait_ms": 500,
+    "scroll_strategy": {
+      "enabled": true,
+      "mode": "viewport",
+      "max_scrolls": 3,
+      "scroll_pause_ms": 300,
+      "stop_selector": ".video-card"
+    }
+  }
+}

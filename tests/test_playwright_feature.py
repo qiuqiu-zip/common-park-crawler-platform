@@ -3,8 +3,8 @@ import json
 from crawler_platform.api import create_app
 from crawler_platform.cli import main
 from crawler_platform.engine import CrawlerEngine
-from crawler_platform.http_client import FetchError, HttpRequest
-from crawler_platform.models import DetailOptions, FieldRule, PaginationOptions, PlaywrightOptions, SpiderConfig
+from crawler_platform.http_client import FetchError, HttpRequest, RequestContext
+from crawler_platform.models import DetailOptions, FieldRule, PaginationOptions, PlaywrightOptions, RequestOptions, SpiderConfig
 from crawler_platform.playwright_runner import BrowserPool, FakeRenderBackend, PlaywrightFetcher, _apply_page_readiness_controls
 from crawler_platform.storage import FileStore
 from crawler_platform.validation import validate_spider_config
@@ -174,6 +174,54 @@ def test_playwright_config_accepts_pool_size_alias_and_headless():
     assert spider.playwright.scroll_strategy.stop_selector == ".video-card"
 
 
+def test_playwright_config_accepts_request_level_render_overrides():
+    payload = _playwright_spider().to_dict()
+    payload["request"]["playwright"] = {
+        "wait_for_selector": ".feed-card",
+        "post_load_wait_ms": 250,
+    }
+    payload["pagination"] = {
+        "type": "url_list",
+        "urls": ["https://example.test/list?page=2"],
+        "max_pages": 2,
+        "request": {
+            "playwright": {
+                "wait_for_selector": ".page-ready",
+                "scroll_strategy": {
+                    "enabled": True,
+                    "mode": "bottom",
+                    "max_scrolls": 2,
+                    "stop_selector": ".page-ready",
+                },
+            }
+        },
+    }
+    payload["detail"] = {
+        "enabled": True,
+        "url_field": "detail_path",
+        "request": {
+            "playwright": {
+                "wait_for_selector": None,
+                "post_load_wait_ms": 100,
+            }
+        },
+        "fields": [{"name": "summary", "type": "css", "selector": ".summary"}],
+    }
+
+    result = validate_spider_config(payload)
+    spider = SpiderConfig.from_dict(payload)
+
+    assert result.valid
+    assert spider.request.playwright is not None
+    assert spider.request.playwright.wait_for_selector == ".feed-card"
+    assert spider.pagination.request.playwright is not None
+    assert spider.pagination.request.playwright.scroll_strategy is not None
+    assert spider.pagination.request.playwright.scroll_strategy.mode == "bottom"
+    assert spider.detail.request.playwright is not None
+    assert spider.detail.request.playwright.has("wait_for_selector")
+    assert spider.detail.request.playwright.wait_for_selector is None
+
+
 def test_playwright_readiness_controls_wait_and_scroll_until_stop_selector():
     page = _FakePage(stop_selector_visible_after=2)
     options = PlaywrightOptions.from_dict(
@@ -192,12 +240,23 @@ def test_playwright_readiness_controls_wait_and_scroll_until_stop_selector():
         }
     )
 
-    readiness = _apply_page_readiness_controls(page, "https://example.test/list", options)
+    readiness = _apply_page_readiness_controls(
+        page,
+        "https://example.test/list",
+        options,
+        page_role="pagination",
+        strategy_source="pagination.request.playwright",
+    )
 
     assert page.wait_selector_calls == [{"selector": ".video-card", "state": "attached", "timeout": 1500}]
     assert page.scroll_modes == ["viewport", "viewport"]
     assert page.wait_timeout_calls == [300, 200, 200]
+    assert readiness["page_role"] == "pagination"
+    assert readiness["strategy_source"] == "pagination.request.playwright"
+    assert readiness["wait_for_selector_used"] == ".video-card"
     assert readiness["wait_for_selector_matched"] is True
+    assert readiness["wait_for_selector_elapsed_ms"] >= 0
+    assert readiness["scroll_count"] == 2
     assert readiness["scrolls_performed"] == 2
 
 
@@ -206,10 +265,13 @@ def test_playwright_readiness_controls_wrap_wait_failures():
     options = PlaywrightOptions.from_dict({"enabled": True, "wait_for_selector": ".video-card"})
 
     try:
-        _apply_page_readiness_controls(page, "https://example.test/list", options)
+        _apply_page_readiness_controls(page, "https://example.test/list", options, page_role="detail", strategy_source="detail.request.playwright")
     except FetchError as exc:
         assert exc.error_type == "playwright_render"
         assert exc.url == "https://example.test/list"
+        assert "detail page" in str(exc)
+        assert ".video-card" in str(exc)
+        assert "timeout_ms=10000" in str(exc)
     else:
         raise AssertionError("expected FetchError")
 
@@ -248,6 +310,174 @@ def test_engine_playwright_pagination_and_detail(workspace_tmp_path):
 
     assert task.total_requests == 4
     assert [record["summary"] for record in store.read_records("pw-detail-task")] == ["Summary A", "Summary B"]
+
+
+def test_engine_playwright_detail_override_clears_global_wait_selector(workspace_tmp_path):
+    spider = _playwright_spider()
+    spider.playwright = PlaywrightOptions.from_dict({"enabled": True, "wait_for_selector": ".video-card", "wait_until": "domcontentloaded"})
+    spider.detail = DetailOptions.from_dict(
+        {
+            "enabled": True,
+            "url_field": "detail_path",
+            "request": {
+                "playwright": {
+                    "wait_for_selector": None,
+                    "post_load_wait_ms": 50,
+                }
+            },
+            "fields": [{"name": "summary", "type": "css", "selector": ".summary"}],
+        }
+    )
+    backend = FakeRenderBackend(
+        {
+            "https://example.test/list": {
+                "body": '<article class="result"><a class="title" href="/detail/a">A</a></article>',
+                "selector_counts": {".video-card": 1},
+            },
+            "https://example.test/detail/a": {
+                "body": '<main><h1 class="headline">Detail A</h1><div class="summary">Summary A</div></main>',
+                "wait_timeout_selectors": [".video-card"],
+                "selector_counts": {"h1.headline": 1},
+            },
+        }
+    )
+    store = FileStore(workspace_tmp_path)
+
+    task = CrawlerEngine(
+        store=store,
+        playwright_fetcher=PlaywrightFetcher(PlaywrightOptions(enabled=True, browser_pool_size=1), backend=backend),
+    ).run(spider, task_id="pw-detail-override")
+
+    assert task.status.value == "success"
+    assert store.read_records("pw-detail-override")[0]["summary"] == "Summary A"
+    assert [call["page_role"] for call in backend.render_calls] == ["start", "detail"]
+    assert backend.render_calls[1]["strategy_source"] == "detail.request.playwright"
+    assert backend.render_calls[1]["playwright_options"].wait_for_selector is None
+    assert backend.render_calls[1]["playwright_options"].post_load_wait_ms == 50
+
+
+def test_engine_playwright_pagination_uses_page_level_wait_override(workspace_tmp_path):
+    spider = _playwright_spider(start_urls=["https://example.test/list?page=1"])
+    spider.playwright = PlaywrightOptions.from_dict({"enabled": True, "wait_for_selector": ".video-card"})
+    spider.pagination = PaginationOptions.from_dict(
+        {
+            "type": "url_list",
+            "urls": ["https://example.test/list?page=2"],
+            "max_pages": 2,
+            "request": {
+                "playwright": {
+                    "wait_for_selector": ".page-ready",
+                    "scroll_strategy": {
+                        "enabled": True,
+                        "mode": "bottom",
+                        "max_scrolls": 2,
+                        "stop_selector": ".page-ready",
+                    },
+                }
+            },
+        }
+    )
+    backend = FakeRenderBackend(
+        {
+            "https://example.test/list?page=1": {
+                "body": '<article class="result"><a class="title">A</a></article>',
+                "selector_counts": {".video-card": 1},
+            },
+            "https://example.test/list?page=2": {
+                "body": '<article class="result"><a class="title">B</a></article>',
+                "selector_counts": {".page-ready": 1},
+            },
+        }
+    )
+
+    task = CrawlerEngine(
+        store=FileStore(workspace_tmp_path),
+        playwright_fetcher=PlaywrightFetcher(PlaywrightOptions(enabled=True, browser_pool_size=1), backend=backend),
+    ).run(spider, task_id="pw-pagination-override")
+
+    assert task.status.value == "success"
+    assert [call["page_role"] for call in backend.render_calls] == ["start", "pagination"]
+    assert backend.render_calls[0]["strategy_source"] == "spider.playwright"
+    assert backend.render_calls[1]["strategy_source"] == "pagination.request.playwright"
+    assert backend.render_calls[1]["playwright_options"].wait_for_selector == ".page-ready"
+    assert backend.render_calls[1]["playwright_options"].scroll_strategy.mode == "bottom"
+
+
+def test_fake_render_backend_supports_scroll_revealed_content():
+    backend = FakeRenderBackend(
+        {
+            "https://example.test/space": {
+                "body": '<div class="loading">拼命加载中...</div>',
+                "body_after_scroll": '<section class="grid"><article class="video-card"><a class="title">Loaded</a></article></section>',
+                "required_scrolls": 2,
+                "selector_counts": {},
+                "selector_counts_after_scroll": {".video-card": 1},
+            }
+        }
+    )
+    fetcher = PlaywrightFetcher(PlaywrightOptions(enabled=True, browser_pool_size=1), backend=backend)
+    request = HttpRequest(
+        method="GET",
+        url="https://example.test/space",
+        response_type="html",
+        context=RequestContext(spider_id="demo", task_id="task", start_url="https://example.test/space", response_type="html", page_role="start"),
+        playwright_options=PlaywrightOptions.from_dict(
+            {
+                "enabled": True,
+                "scroll_strategy": {
+                    "enabled": True,
+                    "mode": "viewport",
+                    "max_scrolls": 3,
+                    "scroll_pause_ms": 10,
+                    "stop_selector": ".video-card",
+                },
+            }
+        ),
+        playwright_strategy_source="request.playwright",
+    )
+
+    response = fetcher.fetch(request)
+
+    assert "Loaded" in response.text
+    assert response.metadata["playwright_readiness"]["scroll_count"] == 2
+    assert response.metadata["playwright_readiness"]["strategy_source"] == "request.playwright"
+
+
+def test_engine_playwright_attribute_selector_regression_keeps_video_urls(workspace_tmp_path):
+    spider = _playwright_spider(
+        unique_fields=["title", "video_url"],
+        fields=[
+            FieldRule(name="title", type="css", selector="a.title"),
+            FieldRule(name="video_url", type="attr", selector='a[href*="/video/"]', attribute="href"),
+        ],
+    )
+    backend = FakeRenderBackend(
+        {
+            "https://example.test/list": (
+                '<article class="result">'
+                '<a class="title" href="/detail/a">A</a>'
+                '<a class="video-link" href="https://www.bilibili.com/video/BV001">Watch</a>'
+                "</article>"
+                '<article class="result">'
+                '<a class="title" href="/detail/b">B</a>'
+                '<a class="video-link" href="https://www.bilibili.com/video/BV002">Watch</a>'
+                "</article>"
+            )
+        }
+    )
+
+    task = CrawlerEngine(
+        store=FileStore(workspace_tmp_path),
+        playwright_fetcher=PlaywrightFetcher(PlaywrightOptions(enabled=True, browser_pool_size=1), backend=backend),
+    ).run(spider, task_id="pw-attr-regression")
+
+    records = FileStore(workspace_tmp_path).read_records("pw-attr-regression")
+    assert task.status.value == "success"
+    assert [record["video_url"] for record in records] == [
+        "https://www.bilibili.com/video/BV001",
+        "https://www.bilibili.com/video/BV002",
+    ]
+    assert not task.warnings
 
 
 def test_fastapi_runs_playwright_spider_with_fake_renderer(workspace_tmp_path):

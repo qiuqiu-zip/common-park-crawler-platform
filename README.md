@@ -64,6 +64,13 @@ python -m crawler_platform.cli examples smoke --data-dir ./data-demo/examples-sm
 
 All default examples use local fixtures under `examples/fixtures/`.
 
+Rendered-page override examples are available for offline validation:
+
+```powershell
+python -m crawler_platform.cli validate examples/playwright_per_page_wait_local.json
+python -m crawler_platform.cli validate examples/playwright_space_style_scroll_local.json
+```
+
 ## Debug Dry Run
 
 Preview selectors, transforms, samples, and field quality before a formal run:
@@ -228,6 +235,8 @@ Common fields:
 - `pagination`: page, offset, explicit URL list, next-link, cursor, max pages,
   and max records.
 - `detail`: detail follow rules and merge mode.
+- `request.playwright`, `pagination.request.playwright`, and
+  `detail.request.playwright`: page-role render readiness overrides.
 - `dedup`, `watermark`, and checkpoints: incremental state.
 - `playwright`: optional rendered-page settings.
 - `scheduler`, `worker`, `session`, `observability`, and `export`: operational

@@ -320,6 +320,36 @@
       "expected": {"status": "success", "min_records": 1}
     },
     {
+      "id": "playwright-per-page-wait-local",
+      "title": "Playwright Per-Page Wait Local",
+      "feature": "Enhancement 03B",
+      "path": "examples/playwright_per_page_wait_local.json",
+      "fixture_paths": [
+        "examples/fixtures/playwright_per_page_wait_list.html",
+        "examples/fixtures/playwright_per_page_wait_detail_1.html"
+      ],
+      "tags": ["playwright", "detail", "wait", "local"],
+      "runnable": true,
+      "requires_playwright": true,
+      "requires_external_network": false,
+      "expected": {"status": "success", "min_records": 1}
+    },
+    {
+      "id": "playwright-space-style-scroll-local",
+      "title": "Playwright Space-Style Scroll Local",
+      "feature": "Enhancement 03B",
+      "path": "examples/playwright_space_style_scroll_local.json",
+      "fixture_paths": [
+        "examples/fixtures/playwright_space_style_loading.html",
+        "examples/fixtures/playwright_space_style_loaded.html"
+      ],
+      "tags": ["playwright", "scroll", "space-style", "local"],
+      "runnable": true,
+      "requires_playwright": true,
+      "requires_external_network": false,
+      "expected": {"status": "success", "min_records": 1}
+    },
+    {
       "id": "playwright-retry",
       "title": "Playwright Retry",
       "feature": "Feature 09",

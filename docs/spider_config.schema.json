@@ -596,6 +596,95 @@
         "fail_fast": {
           "type": "boolean",
           "default": false
+        },
+        "playwright": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "wait_until": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "load",
+                "domcontentloaded",
+                "networkidle",
+                null
+              ]
+            },
+            "wait_for_selector": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "wait_for_selector_timeout_ms": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
+            "post_load_wait_ms": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "scroll_strategy": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "mode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "none",
+                    "viewport",
+                    "incremental",
+                    "bottom",
+                    null
+                  ]
+                },
+                "max_scrolls": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "scroll_pause_ms": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "stop_selector": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -679,6 +768,101 @@
             "null"
           ],
           "minimum": 1
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "playwright": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "wait_until": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "load",
+                    "domcontentloaded",
+                    "networkidle",
+                    null
+                  ]
+                },
+                "wait_for_selector": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "wait_for_selector_timeout_ms": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "post_load_wait_ms": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "scroll_strategy": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "enabled": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "mode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "none",
+                        "viewport",
+                        "incremental",
+                        "bottom",
+                        null
+                      ]
+                    },
+                    "max_scrolls": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1
+                    },
+                    "scroll_pause_ms": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "stop_selector": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -812,6 +996,95 @@
             "fail_fast": {
               "type": "boolean",
               "default": false
+            },
+            "playwright": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "wait_until": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "load",
+                    "domcontentloaded",
+                    "networkidle",
+                    null
+                  ]
+                },
+                "wait_for_selector": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "wait_for_selector_timeout_ms": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "post_load_wait_ms": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "scroll_strategy": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "enabled": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "mode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "none",
+                        "viewport",
+                        "incremental",
+                        "bottom",
+                        null
+                      ]
+                    },
+                    "max_scrolls": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1
+                    },
+                    "scroll_pause_ms": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "stop_selector": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

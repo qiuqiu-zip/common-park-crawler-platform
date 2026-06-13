@@ -1,0 +1,52 @@
+{
+  "id": "playwright-per-page-wait-local",
+  "name": "Playwright per-page wait local demo",
+  "version": "1.0",
+  "type": "playwright",
+  "start_urls": ["examples/fixtures/playwright_per_page_wait_list.html"],
+  "item_selector": "article.result",
+  "unique_fields": ["title", "video_url"],
+  "fields": [
+    {
+      "name": "title",
+      "type": "css",
+      "selector": "a.title"
+    },
+    {
+      "name": "detail_path",
+      "type": "attr",
+      "selector": "a.title",
+      "attribute": "href"
+    },
+    {
+      "name": "video_url",
+      "type": "attr",
+      "selector": "a[href*=\"/video/\"]",
+      "attribute": "href"
+    }
+  ],
+  "detail": {
+    "enabled": true,
+    "url_field": "detail_path",
+    "request": {
+      "playwright": {
+        "wait_for_selector": null,
+        "post_load_wait_ms": 150
+      }
+    },
+    "fields": [
+      {
+        "name": "summary",
+        "type": "css",
+        "selector": ".summary"
+      }
+    ]
+  },
+  "playwright": {
+    "enabled": true,
+    "wait_until": "domcontentloaded",
+    "wait_for_selector": ".video-card",
+    "wait_for_selector_timeout_ms": 10000,
+    "post_load_wait_ms": 300
+  }
+}

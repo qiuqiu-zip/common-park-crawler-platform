@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from .models import RequestOptions
+from .models import PlaywrightOptions, RequestOptions
 
 
 @dataclass(slots=True)
@@ -20,6 +20,7 @@ class RequestContext:
     task_id: str
     start_url: str
     response_type: str
+    page_role: str = "start"
     attempt: int = 1
     proxy: str | None = None
 
@@ -40,6 +41,8 @@ class HttpRequest:
     follow_redirects: bool = True
     context: RequestContext | None = None
     storage_state: dict[str, Any] | None = None
+    playwright_options: PlaywrightOptions | None = None
+    playwright_strategy_source: str | None = None
 
 
 @dataclass(slots=True)
@@ -276,6 +279,8 @@ def build_http_request(
     *,
     response_type: str,
     context: RequestContext | None = None,
+    playwright_options: PlaywrightOptions | None = None,
+    playwright_strategy_source: str | None = None,
 ) -> HttpRequest:
     method = options.method.upper()
     if method not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
@@ -298,6 +303,8 @@ def build_http_request(
         follow_redirects=options.follow_redirects,
         context=context,
         storage_state=None,
+        playwright_options=playwright_options,
+        playwright_strategy_source=playwright_strategy_source,
     )
 
 
